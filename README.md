@@ -53,6 +53,17 @@ macOS 14+ / Swift 6 ツールチェーン。外部パッケージ依存はあり
 
 テストは Swift Testing（`import Testing`）で書かれています。フル Xcode 環境なら `swift test` がそのまま通ります。Command Line Tools のみの環境では SwiftPM が swift-testing ランタイムを自動解決できないため、`./Scripts/test.sh` が CLT 同梱の Testing framework へのパスを補って実行します。
 
+## `.app` を作る
+
+`swift build` が生成するのは素の実行ファイルで、`.app` バンドルではありません。ダブルクリック起動・`/Applications` 配置・ログイン項目登録をしたい場合は:
+
+```bash
+./Scripts/package_app.sh        # dist/ClaudeUsageBar.app を生成（release ビルド + ad-hoc 署名）
+open dist/ClaudeUsageBar.app    # 起動（メニューバーに常駐 / Dock なし）
+```
+
+`Info.plist` に `LSUIElement=true` を入れているため、Finder から起動しても Dock に出ないメニューバー常駐アプリになります。ad-hoc 署名のみで Developer ID 署名／notarization はしていないので、初回起動は右クリック →「開く」で Gatekeeper を通してください。`dist/` は `.gitignore` 対象です。
+
 ## クレジット
 
 - データ取得ロジックの元: 自作 `claude-usage-all`
