@@ -19,6 +19,37 @@ public struct UsageService: Sendable {
     /// Produce a snapshot across all discovered accounts. Fetches run concurrently;
     /// per-account failures become `AccountUsage.error` rather than throwing.
     public func snapshot(now: Date = Date()) async -> UsageSnapshot {
-        fatalError("unimplemented — Core-data agent")
+        // Group folders by authenticated email; nil email collapses under "(unknown)".
+        // Discovery is sorted by configDir, so folder order within a group is stable.
+        var groups: [String: [(folder: String, dir: String)]] = [:]
+        for account in ConfigDiscovery.discover() {
+            let email = account.email ?? "(unknown)"
+            groups[email, default: []].append((account.folderName, account.configDir))
+        }
+
+        let client = self.client
+        return await withTaskGroup(of: AccountUsage.self) { group in
+            for (email, entries) in groups {
+                group.addTask {
+                    let folders = entries.map { $0.folder }.sorted()
+                    let token = entries.lazy.compactMap { KeychainReader.accessToken(forConfigDir: $0.dir) }.first
+                    guard let token else {
+                        return AccountUsage(email: email, folders: folders, error: "no token", fetchedAt: now)
+                    }
+                    do {
+                        let windows = try await client.fetchWindows(token: token)
+                        return AccountUsage(email: email, folders: folders, windows: windows, error: nil, fetchedAt: now)
+                    } catch let error as UsageAPIError {
+                        return AccountUsage(email: email, folders: folders, error: error.shortMessage, fetchedAt: now)
+                    } catch {
+                        return AccountUsage(email: email, folders: folders, error: "error", fetchedAt: now)
+                    }
+                }
+            }
+            var accounts: [AccountUsage] = []
+            for await account in group { accounts.append(account) }
+            accounts.sort { $0.email < $1.email }
+            return UsageSnapshot(accounts: accounts, generatedAt: now)
+        }
     }
 }

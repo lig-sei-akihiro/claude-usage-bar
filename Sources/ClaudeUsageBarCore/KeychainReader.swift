@@ -29,6 +29,26 @@ public enum KeychainReader {
     /// `security find-generic-password -s <serviceName> -w`, JSON-decode stdout, and
     /// return `claudeAiOauth.accessToken`.
     public static func accessToken(forConfigDir dir: String) -> String? {
-        fatalError("unimplemented — Core-data agent")
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        proc.arguments = ["find-generic-password", "-s", serviceName(forConfigDir: dir), "-w"]
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+        do {
+            try proc.run()
+        } catch {
+            return nil
+        }
+        // Read before waiting so a large payload can't deadlock on a full pipe buffer.
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        guard proc.terminationStatus == 0 else { return nil }
+
+        struct Root: Decodable {
+            struct OAuth: Decodable { let accessToken: String? }
+            let claudeAiOauth: OAuth?
+        }
+        return (try? JSONDecoder().decode(Root.self, from: data))?.claudeAiOauth?.accessToken
     }
 }

@@ -44,12 +44,14 @@ Claude Code の usage / status に特化した macOS メニューバーアプリ
 ## ビルド（動作確認は各自で）
 
 ```bash
-swift build          # コンパイル確認
+swift build                # コンパイル確認
 swift run ClaudeUsageBar   # メニューバーに常駐（Dock アイコンなし）
-swift test           # Core のユニットテスト
+./Scripts/test.sh          # Core のユニットテスト（22 tests / 3 suites）
 ```
 
 macOS 14+ / Swift 6 ツールチェーン。外部パッケージ依存はありません（AppKit / SwiftUI / CryptoKit / Security の system framework のみ）。
+
+テストは Swift Testing（`import Testing`）で書かれています。フル Xcode 環境なら `swift test` がそのまま通ります。Command Line Tools のみの環境では SwiftPM が swift-testing ランタイムを自動解決できないため、`./Scripts/test.sh` が CLT 同梱の Testing framework へのパスを補って実行します。
 
 ## クレジット
 

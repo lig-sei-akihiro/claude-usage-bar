@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Implemented by the App-menubar agent.
+        let settings = SettingsStore()
+        let model = AppModel(settings: settings)
+        controller = StatusItemController(model: model)
+        model.refresh()
     }
 }
