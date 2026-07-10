@@ -9,7 +9,10 @@ Outputs (into Assets/icon/):
   AppIcon.svg        the chosen theme (what make_icons.sh rasterizes)
   AppIcon-dark.svg   dark "terminal" squircle variant
   AppIcon-light.svg  light "cream" squircle variant
-  MenuBar.svg        monochrome sprite only, for the status-item template
+
+The menu-bar status-item glyph is NOT generated here — the app draws it live
+(Clawd + a usage gauge that fills to the real percentage) in ClawdGlyph.swift.
+The sprite below is mirrored there; keep the two in sync if the character changes.
 
 Edit the SPRITE grid / colours here, then run Scripts/make_icons.sh.
 """
@@ -38,8 +41,8 @@ EYE = "#2A201B"    # dark warm brown
 METER_FILL = "#E08A63"
 
 THEMES = {
-    "dark":  {"bg_top": "#302B26", "bg_bot": "#191512", "meter_empty": "#FFFFFF", "meter_empty_op": 0.14},
-    "light": {"bg_top": "#F5EEE4", "bg_bot": "#E7D3C0", "meter_empty": "#3A2A20", "meter_empty_op": 0.15},
+    "dark":  {"bg_top": "#302B26", "bg_bot": "#191512", "meter_empty": "#FFFFFF", "meter_empty_op": 0.22},
+    "light": {"bg_top": "#F5EEE4", "bg_bot": "#E7D3C0", "meter_empty": "#3A2A20", "meter_empty_op": 0.22},
 }
 
 CANVAS = 1024
@@ -72,9 +75,9 @@ def sprite_rects(x0, y0, px, body_fill, eye_fill=None, skip_eyes=False):
     return "\n  ".join(out)
 
 
-def meter(cx_center, y, total_w, height, segments=10, filled=7, fill=METER_FILL,
+def meter(cx_center, y, total_w, height, segments=5, filled=3, fill=METER_FILL,
           empty="#FFFFFF", empty_op=0.14):
-    gap = 10
+    gap = 16
     seg_w = (total_w - gap * (segments - 1)) / segments
     x = cx_center - total_w / 2
     out = []
@@ -103,7 +106,7 @@ def build_app_svg(theme_name):
     y0 = group_top
     meter_y = y0 + sprite_h + gap
     cells = sprite_rects(x0, y0, px, BODY, EYE)
-    bars = meter(CANVAS / 2, meter_y, sprite_w, meter_h,
+    bars = meter(CANVAS / 2, meter_y, sprite_w, meter_h, segments=5, filled=3,
                  empty=t["meter_empty"], empty_op=t["meter_empty_op"])
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS}" height="{CANVAS}" viewBox="0 0 {CANVAS} {CANVAS}" shape-rendering="crispEdges">
   <defs>
@@ -119,19 +122,6 @@ def build_app_svg(theme_name):
 '''
 
 
-def build_menubar_svg():
-    """Monochrome sprite for the status-item template image. Body is opaque
-    black, eyes are transparent holes. AppKit tints it for light/dark menu bar."""
-    px = 8
-    w = COLS * px
-    h = ROWS * px
-    cells = sprite_rects(0, 0, px, "#000000", skip_eyes=True)
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" shape-rendering="crispEdges">
-  {cells}
-</svg>
-'''
-
-
 def main():
     out = Path(__file__).resolve().parent.parent / "Assets" / "icon"
     out.mkdir(parents=True, exist_ok=True)
@@ -140,8 +130,7 @@ def main():
     (out / "AppIcon-dark.svg").write_text(dark)
     (out / "AppIcon-light.svg").write_text(light)
     (out / "AppIcon.svg").write_text(dark)   # default; swap after review
-    (out / "MenuBar.svg").write_text(build_menubar_svg())
-    print("wrote AppIcon.svg (=dark), AppIcon-dark.svg, AppIcon-light.svg, MenuBar.svg")
+    print("wrote AppIcon.svg (=dark), AppIcon-dark.svg, AppIcon-light.svg")
 
 
 if __name__ == "__main__":

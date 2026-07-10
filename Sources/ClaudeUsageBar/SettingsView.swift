@@ -1,29 +1,43 @@
+import AppKit
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// iStat-Menus-style settings for what the bar shows (requirements #4 & #6):
-/// master text toggle, metric, remaining/used, reset countdown, metric-label &
-/// percent-sign toggles, account mode + pin (the pin picker lists `accounts`), and
-/// refresh cadence.
-///
-/// Implemented by the App-UI agent. Observes `SettingsStore` directly so toggles
-/// re-render; `accounts` is a snapshot passed at open time (for the pin picker).
-/// The controller constructs it as `SettingsView(settings: model.settings, accounts: model.snapshot.accounts)`.
+/// iStat-Menus-style settings: launch-at-login, the bar's metric / remaining-vs-used /
+/// reset display / label toggles, account mode + pin, and refresh cadence. `accounts`
+/// is passed at open time to populate the pin picker.
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     var accounts: [AccountUsage] = []
+    /// System login-item state (not a UserDefault — SMAppService owns it). Seeded on open.
+    @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("Menu bar shows") {
-                    Text(previewText)
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Claude Usage Bar")
+                            .font(.headline)
+                        Text("Claude Code usage in your menu bar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                 }
             }
 
+            Section("General") {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        LoginItem.setEnabled(newValue)
+                    }
+            }
+
             Section("Menu Bar") {
+                // No preview here — the real menu bar updates live as these change.
                 // The master toggle must stay OUTSIDE the .disabled scope, or turning
                 // it off disables itself and you can never turn it back on.
                 Toggle("Show text in menu bar", isOn: $settings.showBarText)
@@ -80,13 +94,6 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 380)
-    }
-
-    /// Live sample of the composed bar title, using the first account if present.
-    private var previewText: String {
-        let snapshot = UsageSnapshot(accounts: accounts, generatedAt: Date())
-        let title = BarTitleFormatter.make(from: snapshot, settings: settings.displaySettings)
-        return title.text.isEmpty ? "(icon only)" : title.text
     }
 
     static func label(for metric: BarMetric) -> String {

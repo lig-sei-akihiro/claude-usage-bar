@@ -4,11 +4,9 @@ import Foundation
 /// concurrently → group by email into a `UsageSnapshot`.
 ///
 /// Grouping matches `claude-usage-all`: usage is per-authentication, so multiple
-/// config folders sharing one email collapse into a single `AccountUsage` whose
-/// `folders` lists every contributing folder name. The first folder that yields a
-/// token is used to fetch.
-///
-/// Implemented by the Core-data agent.
+/// config folders sharing one email collapse into a single `AccountUsage`. Each
+/// folder's token is tried until one fetches; folders that can't authenticate are
+/// dropped from the label.
 public struct UsageService: Sendable {
     public var client: UsageAPIClient
 
@@ -33,19 +31,35 @@ public struct UsageService: Sendable {
         return await withTaskGroup(of: AccountUsage.self) { group in
             for (email, entries) in groups {
                 group.addTask {
-                    let folders = entries.map { $0.folder }.sorted()
-                    let token = entries.lazy.compactMap { KeychainReader.accessToken(forConfigDir: $0.dir) }.first
-                    guard let token else {
-                        return AccountUsage(email: email, folders: folders, error: "no token", fetchedAt: now)
+                    // Folders sharing an email may each hold a different token (e.g. a stale
+                    // default ~/.claude alongside an active ~/.claude_main). Try each in turn
+                    // and take the first that actually fetches, so one expired token doesn't
+                    // sink the account. Folders whose token can't authenticate (missing, 401,
+                    // 403) are dropped from the label — a broken folder isn't worth showing.
+                    var excluded = Set<String>()
+                    var lastError = "no token"
+                    var fetched: [RateWindow]?
+                    for entry in entries {
+                        guard let token = KeychainReader.accessToken(forConfigDir: entry.dir) else {
+                            excluded.insert(entry.folder); lastError = "no token"; continue
+                        }
+                        do {
+                            fetched = try await client.fetchWindows(token: token)
+                            break
+                        } catch let error as UsageAPIError {
+                            lastError = error.shortMessage
+                            if case .http(let code) = error, code == 401 || code == 403 {
+                                excluded.insert(entry.folder)
+                            }
+                        } catch {
+                            lastError = "error"
+                        }
                     }
-                    do {
-                        let windows = try await client.fetchWindows(token: token)
-                        return AccountUsage(email: email, folders: folders, windows: windows, error: nil, fetchedAt: now)
-                    } catch let error as UsageAPIError {
-                        return AccountUsage(email: email, folders: folders, error: error.shortMessage, fetchedAt: now)
-                    } catch {
-                        return AccountUsage(email: email, folders: folders, error: "error", fetchedAt: now)
+                    let folders = entries.map { $0.folder }.filter { !excluded.contains($0) }.sorted()
+                    if let fetched {
+                        return AccountUsage(email: email, folders: folders, windows: fetched, error: nil, fetchedAt: now)
                     }
+                    return AccountUsage(email: email, folders: folders, error: lastError, fetchedAt: now)
                 }
             }
             var accounts: [AccountUsage] = []

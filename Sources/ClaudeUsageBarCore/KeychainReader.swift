@@ -24,10 +24,9 @@ public enum KeychainReader {
         return "Claude Code-credentials-" + String(hex.prefix(8))
     }
 
-    /// Reads the OAuth `accessToken` for a config dir, or nil if none is stored /
-    /// the item cannot be parsed. Implemented by the Core-data agent: shell out to
-    /// `security find-generic-password -s <serviceName> -w`, JSON-decode stdout, and
-    /// return `claudeAiOauth.accessToken`.
+    /// Reads the OAuth `accessToken` for a config dir, or nil if none is stored or the
+    /// item can't be parsed: shell out to `security find-generic-password -s <name> -w`,
+    /// JSON-decode stdout, and return `claudeAiOauth.accessToken`.
     public static func accessToken(forConfigDir dir: String) -> String? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")

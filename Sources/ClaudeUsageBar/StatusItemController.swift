@@ -3,10 +3,9 @@ import Combine
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// Owns the `NSStatusItem`. Renders the color-coded bar title from
-/// `BarTitleFormatter` (requirement #4), runs the refresh timer keyed off
-/// `SettingsStore.refreshInterval`, drives `AppModel.snapshot`, and shows the
-/// popover (`PopoverView`) / settings window (`SettingsView`).
+/// Owns the `NSStatusItem`. Renders the colour-coded bar title from `BarTitleFormatter`,
+/// runs the refresh timer keyed off `SettingsStore.refreshInterval`, drives
+/// `AppModel.snapshot`, and shows the popover / settings window.
 @MainActor
 final class StatusItemController {
     private let model: AppModel
@@ -115,7 +114,11 @@ final class StatusItemController {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "claude-usage-bar Settings"
+            // No visible title — the form has its own icon + name header, so the window
+            // title text is redundant. Keep the standard title bar (traffic lights / drag),
+            // just hide the text. (`title` is still set for the Window menu / accessibility.)
+            window.title = "Settings"
+            window.titleVisibility = .hidden
             window.isReleasedWhenClosed = false
             // Follow the user across Spaces: reopening brings the window to the active
             // desktop instead of switching back to the Space it first appeared on.
@@ -168,78 +171,98 @@ final class StatusItemController {
 
         let settings = model.settings.displaySettings
         let title = BarTitleFormatter.make(from: model.snapshot, settings: settings)
-        let color = tintColor(for: title.severity)
+
+        // Clawd (the mascot) + a mini usage gauge always lead the status item, echoing
+        // the app icon. Coloured by the (worst) severity from the shared palette; the
+        // gauge fills to live usage.
+        let glyph = ClawdGlyph.image(
+            fraction: BarTitleFormatter.representativeFraction(from: model.snapshot, settings: settings),
+            color: SeverityColor.ns(title.severity))
+        button.contentTintColor = nil
 
         if settings.showBarText && !title.text.isEmpty {
-            button.contentTintColor = nil
             if title.text.contains("\n") {
-                // Stacked lines: draw into an image the exact height of the menu bar,
-                // vertically centered. A raw multi-line attributedTitle left dead space
+                // Stacked lines: draw the glyph + both lines into one image sized to
+                // the menu bar height. A raw multi-line attributedTitle left dead space
                 // at the bottom; drawing our own image removes it and lets the font grow.
+                // Each line's percentage is coloured by ITS OWN severity.
+                let lines = BarTitleFormatter.allLines(from: model.snapshot, settings: settings)
                 button.attributedTitle = NSAttributedString(string: "")
-                button.image = Self.stackedTitleImage(title.text, color: color)
+                button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: glyph)
                 button.imagePosition = .imageOnly
             } else {
-                button.image = nil
-                button.imagePosition = .noImage
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .foregroundColor: color,
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-                ]
-                button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
+                button.image = glyph
+                button.imagePosition = .imageLeading
+                button.attributedTitle = Self.barLine(
+                    title.text, severity: title.severity,
+                    font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular))
             }
         } else {
+            // Icon-only mode: Clawd + gauge is the whole status item.
             button.imagePosition = .imageOnly
             button.attributedTitle = NSAttributedString(string: "")
-            let image = NSImage(
-                systemSymbolName: "gauge.with.dots.needle.33percent",
-                accessibilityDescription: "Claude usage"
-            ) ?? NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Claude usage")
-            image?.isTemplate = true
-            button.image = image
-            // Only tint for attention states; leave normal/stale as the adaptive
-            // template so the icon is always crisply visible and clickable (the way
-            // back from icon-only mode is clicking it → popover → Settings).
-            switch title.severity {
-            case .warning, .critical, .error: button.contentTintColor = color
-            case .normal, .stale: button.contentTintColor = nil
-            }
+            button.image = glyph
         }
     }
 
-    private func tintColor(for severity: BarSeverity) -> NSColor {
-        switch severity {
-        case .normal: return .labelColor
-        case .warning: return .systemOrange
-        case .critical: return .systemRed
-        case .error: return .systemRed
-        case .stale: return .tertiaryLabelColor
+    /// An attributed status-bar line: the base text is white (adaptive `labelColor`);
+    /// only the percentage token takes the severity colour (green → orange → red).
+    /// The account/metric label and the reset time stay white.
+    static func barLine(_ text: String, severity: BarSeverity, font: NSFont,
+                        paragraph: NSParagraphStyle? = nil) -> NSAttributedString {
+        var base: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.labelColor, .font: font]
+        if let paragraph { base[.paragraphStyle] = paragraph }
+        let attr = NSMutableAttributedString(string: text, attributes: base)
+        if let range = percentRange(in: text) {
+            attr.addAttribute(.foregroundColor, value: SeverityColor.ns(severity), range: range)
         }
+        return attr
     }
 
-    /// Draw stacked lines into an image sized to the menu bar height, vertically
-    /// centered. Non-template so the severity color is preserved.
-    private static func stackedTitleImage(_ text: String, color: NSColor) -> NSImage {
+    /// Range of the "NN%" (or "NN") percentage token: the trailing digit-run of the
+    /// line's *head* (everything before the " · " reset). The value is always the last
+    /// token of the head, so this never lands on digits inside a numeric account label
+    /// (e.g. the "2" in "v2 30%") in `.all` mode, nor on the reset-time digits.
+    private static func percentRange(in text: String) -> NSRange? {
+        let ns = text as NSString
+        let sep = ns.range(of: " · ")
+        let head = sep.location == NSNotFound ? text : ns.substring(to: sep.location)
+        guard let re = try? NSRegularExpression(pattern: #"\d+%?$"#) else { return nil }
+        return re.firstMatch(in: head, range: NSRange(location: 0, length: (head as NSString).length))?.range
+    }
+
+    /// Draw an optional leading glyph plus stacked lines into an image sized to the
+    /// menu bar height, vertically centered. Each line's percentage keeps its own
+    /// severity colour; the layout is a single multi-line draw so spacing is stable.
+    private static func stackedTitleImage(lines: [StackedLine],
+                                          leadingGlyph: NSImage? = nil) -> NSImage {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .right
         paragraph.lineSpacing = 0
         paragraph.maximumLineHeight = 10.5
         paragraph.minimumLineHeight = 10.5
-        let attrs: [NSAttributedString.Key: Any] = [
-            .foregroundColor: color,
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
-            .paragraphStyle: paragraph,
-        ]
-        let attr = NSAttributedString(string: text, attributes: attrs)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        let attr = NSMutableAttributedString()
+        for (i, line) in lines.enumerated() {
+            if i > 0 { attr.append(NSAttributedString(string: "\n")) }
+            attr.append(barLine(line.text, severity: line.severity, font: font, paragraph: paragraph))
+        }
         let textSize = attr.size()
         let height = NSStatusBar.system.thickness
-        let width = max(1, ceil(textSize.width) + 2)
+        let glyphW = leadingGlyph?.size.width ?? 0
+        let gap: CGFloat = leadingGlyph == nil ? 0 : 4
+        let textW = ceil(textSize.width)
+        let width = max(1, glyphW + gap + textW + 2)
         let image = NSImage(size: NSSize(width: width, height: height))
         image.lockFocus()
+        if let glyph = leadingGlyph {
+            let gy = ((height - glyph.size.height) / 2).rounded()
+            glyph.draw(at: NSPoint(x: 0, y: gy), from: .zero, operation: .sourceOver, fraction: 1)
+        }
         // Nudge 1pt down: each line box carries empty descender space at its bottom, so a
         // geometric center leaves the glyph mass looking slightly high. Verified visually.
         let y = ((height - textSize.height) / 2).rounded() - 1
-        attr.draw(in: NSRect(x: 0, y: y, width: width, height: ceil(textSize.height)))
+        attr.draw(in: NSRect(x: glyphW + gap, y: y, width: textW, height: ceil(textSize.height)))
         image.unlockFocus()
         image.isTemplate = false
         return image

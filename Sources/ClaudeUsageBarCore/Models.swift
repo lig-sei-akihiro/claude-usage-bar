@@ -154,3 +154,15 @@ public struct BarTitle: Sendable, Equatable {
     /// Placeholder shown before the first refresh completes.
     public static let placeholder = BarTitle(text: "…", severity: .stale)
 }
+
+/// One line of the `.all`-mode stacked title, carrying its own severity so each
+/// account line can be coloured independently in the menu bar.
+public struct StackedLine: Sendable, Equatable {
+    public var text: String
+    public var severity: BarSeverity
+
+    public init(text: String, severity: BarSeverity) {
+        self.text = text
+        self.severity = severity
+    }
+}

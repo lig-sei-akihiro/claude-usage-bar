@@ -21,7 +21,7 @@ public enum UsageAPIError: Error, Sendable, Equatable {
 /// and the required `anthropic-beta: oauth-2025-04-20` header, then maps the
 /// `limits[]` payload into `[RateWindow]`.
 ///
-/// Implemented by the Core-data agent. Mapping rules (from `claude-usage-all`):
+/// Mapping rules (from `claude-usage-all`):
 /// - `kind == "session"` → `.session`, label "Session (5h)"
 /// - `kind == "weekly_all"` → `.weeklyAll`, label "Week (all)"
 /// - `kind == "weekly_scoped"` → `.weeklyScoped`, label "Week (<model>)",

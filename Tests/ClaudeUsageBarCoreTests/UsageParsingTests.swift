@@ -98,6 +98,39 @@ struct UsageParsingTests {
         #expect(!accounts.contains { $0.folderName == "empty" })
     }
 
+    /// The common setup: a default member (no CLAUDE_CONFIG_DIR) whose `oauthAccount`
+    /// lives in the home-level `~/.claude.json`, with a `~/.claude` data dir that has no
+    /// `.claude.json` inside. Regression for "No Claude Code accounts found".
+    @Test func configDiscoveryReadsDefaultEmailFromHomeLevelJSON() throws {
+        let fm = FileManager.default
+        let home = fm.temporaryDirectory.appendingPathComponent("cub-\(UUID().uuidString)")
+        try fm.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: home) }
+
+        // ~/.claude data dir (no .claude.json inside), plus the real config at ~/.claude.json.
+        try fm.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
+        try #"{"oauthAccount":{"emailAddress":"solo@example.com"}}"#
+            .write(to: home.appendingPathComponent(".claude.json"), atomically: true, encoding: .utf8)
+
+        let accounts = ConfigDiscovery.discover(homeDirectory: home.path)
+        let def = try #require(accounts.first { $0.folderName == "default" })
+        #expect(def.configDir == home.appendingPathComponent(".claude").path)
+        #expect(def.email == "solo@example.com")
+    }
+
+    /// A `~/.claude` dir with neither a home-level nor an inside `.claude.json` yields no
+    /// email, so `UsageService` drops it rather than showing a phantom account.
+    @Test func configDiscoveryDefaultWithoutAnyConfigHasNoEmail() throws {
+        let fm = FileManager.default
+        let home = fm.temporaryDirectory.appendingPathComponent("cub-\(UUID().uuidString)")
+        try fm.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: home) }
+        try fm.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
+
+        let accounts = ConfigDiscovery.discover(homeDirectory: home.path)
+        #expect(accounts.first { $0.folderName == "default" }?.email == nil)
+    }
+
     @Test func retainingWindowsCarriesForwardOnTransientError() {
         let good = RateWindow(kind: .session, label: "Session (5h)", usedPercent: 40)
         let previous = UsageSnapshot(

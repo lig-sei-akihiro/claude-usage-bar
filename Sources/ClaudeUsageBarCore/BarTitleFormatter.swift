@@ -1,9 +1,8 @@
 import Foundation
 
-/// Composes the menu bar title from a snapshot + display settings.
-///
-/// This is the heart of requirements #4/#5/#6: it decides which account and which
-/// window to show, whether to show remaining vs used, and the severity color.
+/// Composes the menu bar title from a snapshot + display settings: decides which
+/// account and which window to show, whether to show remaining vs used, and the
+/// severity color.
 ///
 /// Contract:
 /// - Respect `settings.showBarText` (caller may still want an icon when false).
@@ -59,39 +58,71 @@ public enum BarTitleFormatter {
         }
     }
 
+    /// The used fraction (0...1) the bar's gauge represents: the window picked by
+    /// `barMetric` for the shown account, or the worst (max) across all in `.all`
+    /// mode. `nil` when there is no usable window. Shared by the menu-bar glyph and
+    /// the popover header badge so both track the same value.
+    public static func representativeFraction(from snapshot: UsageSnapshot, settings: DisplaySettings) -> Double? {
+        if settings.accountMode == .all {
+            return snapshot.accounts
+                .compactMap { pickWindow(for: $0, metric: settings.barMetric)?.usedPercent }
+                .max()
+                .map { $0 / 100 }
+        }
+        guard let account = selectedAccount(from: snapshot, settings: settings),
+              let window = pickWindow(for: account, metric: settings.barMetric) else { return nil }
+        return window.usedPercent / 100
+    }
+
     // MARK: - Private
 
     /// `.all` mode: a multi-line title, one labelled account per line, ordered by
     /// account label (e.g. "main" before "sub"), capped at 2 lines. Lines join with
-    /// "\n" for the renderer to stack; severity is the worst of the shown.
+    /// "\n" for the renderer to stack.
     private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date) -> BarTitle {
-        guard !snapshot.accounts.isEmpty else { return BarTitle(text: "", severity: .stale) }
+        let lines = allLines(from: snapshot, settings: settings, now: now)
+        guard !lines.isEmpty else { return BarTitle(text: "", severity: .stale) }
 
-        let shown = snapshot.accounts
-            .sorted { accountLabel($0) < accountLabel($1) }
-            .prefix(2)
-
-        var worst: BarSeverity = .normal
-        var lines: [String] = []
-        for account in shown {
-            let window = pickWindow(for: account, metric: settings.barMetric)
-            worst = worseOf(worst, severity(account: account, window: window))
-            var line = accountLabel(account) + " " + valueFragment(window: window, settings: settings)
-            if let window { line += resetSuffix(window: window, settings: settings, now: now) }
-            lines.append(line)
-        }
-
-        let text = settings.showBarText ? lines.joined(separator: "\n") : ""
+        // Severity spans ALL accounts, not just the (max 2) shown lines, so it tracks
+        // the same set as `representativeFraction`: a hidden high-usage account still
+        // colours the glyph to match the gauge fill.
+        let worst = snapshot.accounts
+            .map { severity(account: $0, window: pickWindow(for: $0, metric: settings.barMetric)) }
+            .reduce(BarSeverity.normal, worseOf)
+        let text = settings.showBarText ? lines.map(\.text).joined(separator: "\n") : ""
         return BarTitle(text: text, severity: worst)
     }
 
+    /// The per-account lines shown in `.all` mode, each with **its own** severity
+    /// (so the renderer can colour each line independently while the icon/gauge use
+    /// the worst/max). Ordered by label, capped at 2. Empty for a no-account snapshot.
+    public static func allLines(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> [StackedLine] {
+        snapshot.accounts
+            .sorted { accountLabel($0) < accountLabel($1) }
+            .prefix(2)
+            .map { account in
+                let window = pickWindow(for: account, metric: settings.barMetric)
+                let label = accountLabel(account)
+                var text = label.isEmpty ? "" : label + " "
+                text += valueFragment(window: window, settings: settings)
+                if let window { text += resetSuffix(window: window, settings: settings, now: now) }
+                return StackedLine(text: text, severity: severity(account: account, window: window))
+            }
+    }
+
     /// Short label identifying an account on its stacked line: the config folders,
-    /// falling back to the email's local part.
+    /// falling back to the email's local part. The anonymous `"default"` folder
+    /// (bare `~/.claude`) is never shown — a lone default account gets no label.
     private static func accountLabel(_ account: AccountUsage) -> String {
-        let folders = account.folders.joined(separator: "/")
-        if !folders.isEmpty { return folders }
-        if let at = account.email.firstIndex(of: "@") { return String(account.email[..<at]) }
-        return account.email
+        let named = account.folders.filter { $0 != "default" }
+        if !named.isEmpty { return named.joined(separator: "/") }
+        // No named folder. If there were no folders at all, fall back to the email's
+        // local part; if the only folder was "default", show nothing.
+        if account.folders.isEmpty {
+            if let at = account.email.firstIndex(of: "@") { return String(account.email[..<at]) }
+            return account.email
+        }
+        return ""
     }
 
     /// The metric value fragment (label + number + % sign), without the countdown suffix.

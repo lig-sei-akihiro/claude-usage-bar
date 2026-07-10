@@ -15,3 +15,7 @@ DerivedData/
 # Build output / app bundles
 *.app
 dist/
+
+# Local scratch / preview artifacts (never commit)
+scratchpad-*
+/scratchpad/

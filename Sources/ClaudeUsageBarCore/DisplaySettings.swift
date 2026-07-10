@@ -2,14 +2,13 @@ import Foundation
 
 // MARK: - Display settings (contract)
 //
-// What the menu bar title shows. Requirement #6: the #4 bar display is fully
-// configurable, iStat-Menus style. This is a plain value type in Core so the
-// formatter can be unit-tested; the App layer's SettingsStore maps UserDefaults
-// onto this.
+// What the menu bar title shows — fully configurable, iStat-Menus style. A plain
+// value type in Core so the formatter can be unit-tested; the App layer's
+// SettingsStore maps UserDefaults onto this.
 
 /// Which usage window feeds the bar title.
 public enum BarMetric: String, Sendable, CaseIterable, Codable {
-    /// The rolling 5-hour session window — the default (requirement #4).
+    /// The rolling 5-hour session window — the default.
     case session
     case weeklyAll
     case weeklyFable
@@ -54,10 +53,9 @@ public enum ResetDisplay: String, Sendable, CaseIterable, Codable {
     case time
 }
 
-/// The knobs that decide the bar title. Sensible defaults satisfy requirement #4
-/// (5-hour usage, visible at a glance) out of the box.
+/// The knobs that decide the bar title, with sensible out-of-the-box defaults.
 public struct DisplaySettings: Sendable, Equatable, Codable {
-    /// Master toggle for the bar text (requirement #6). When false, only an icon shows.
+    /// Master toggle for the bar text. When false, only an icon shows.
     public var showBarText: Bool
     public var barMetric: BarMetric
     public var percentBasis: PercentBasis

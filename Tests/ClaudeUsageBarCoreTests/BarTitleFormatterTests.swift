@@ -230,6 +230,24 @@ struct BarTitleFormatterTests {
         #expect(!out.text.contains("\n"))
     }
 
+    @Test func allModeDefaultOnlyAccountHasNoLabel() {
+        // A lone default account (~/.claude) shows just the value — "default" is noise.
+        let a = account("solo@x", [win(.session, used: 30)], folders: ["default"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+        #expect(out.text == "5h 30%")
+    }
+
+    @Test func allModeDropsDefaultFromCombinedLabel() {
+        // When "default" shares an email with a real folder, only the real one shows.
+        let a = account("me@x", [win(.session, used: 40)], folders: ["default", "main"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+        #expect(out.text == "main 5h 40%")
+    }
+
     @Test func allModeLabelFallsBackToEmailPrefixWhenNoFolders() {
         let a = account("nofolders@x", [win(.session, used: 20)], folders: [])
         let out = BarTitleFormatter.make(

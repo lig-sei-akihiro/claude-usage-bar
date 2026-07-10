@@ -129,14 +129,9 @@
   <rect x="372.00" y="645.00" width="40.50" height="40.50" fill="#C1714E"/>
   <rect x="612.00" y="645.00" width="40.50" height="40.50" fill="#C1714E"/>
   <rect x="652.00" y="645.00" width="40.50" height="40.50" fill="#C1714E"/>
-  <rect x="252.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="305.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="358.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="411.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="464.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="517.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="570.00" y="725.0" width="43.00" height="54" rx="7" fill="#E08A63"/>
-  <rect x="623.00" y="725.0" width="43.00" height="54" rx="7" fill="#FFFFFF" fill-opacity="0.14"/>
-  <rect x="676.00" y="725.0" width="43.00" height="54" rx="7" fill="#FFFFFF" fill-opacity="0.14"/>
-  <rect x="729.00" y="725.0" width="43.00" height="54" rx="7" fill="#FFFFFF" fill-opacity="0.14"/>
+  <rect x="252.00" y="725.0" width="91.20" height="54" rx="7" fill="#E08A63"/>
+  <rect x="359.20" y="725.0" width="91.20" height="54" rx="7" fill="#E08A63"/>
+  <rect x="466.40" y="725.0" width="91.20" height="54" rx="7" fill="#E08A63"/>
+  <rect x="573.60" y="725.0" width="91.20" height="54" rx="7" fill="#FFFFFF" fill-opacity="0.22"/>
+  <rect x="680.80" y="725.0" width="91.20" height="54" rx="7" fill="#FFFFFF" fill-opacity="0.22"/>
 </svg>

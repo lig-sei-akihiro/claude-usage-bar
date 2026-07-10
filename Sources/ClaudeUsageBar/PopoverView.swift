@@ -1,23 +1,14 @@
+import AppKit
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// The dropdown content shown when the status item is clicked: one row per account
-/// with session/weekly bars and reset times (requirement #5 — multi-account), plus a
-/// footer with refresh / settings / quit.
-///
-/// Implemented by the App-UI agent. Reads everything from the injected `AppModel`
-/// (`model.snapshot`, `model.settings`, `model.isRefreshing`) and calls
-/// `model.refresh()` / `model.openSettings()` / `model.quit()`. Construct as
-/// `PopoverView().environmentObject(model)`.
+/// The dropdown shown when the status item is clicked: one row per account with
+/// session/weekly bars and reset times, plus a footer with refresh / settings / quit.
 struct PopoverView: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header
-
-            Divider()
-
             if model.snapshot.accounts.isEmpty {
                 emptyState
             } else {
@@ -35,24 +26,6 @@ struct PopoverView: View {
         .frame(width: 340)
     }
 
-    private var header: some View {
-        HStack {
-            Text("Claude Code Usage")
-                .font(.headline)
-            Spacer()
-            if model.isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                Button(action: { model.refresh() }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-                .help("Refresh usage")
-            }
-        }
-    }
-
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "person.crop.circle.badge.questionmark")
@@ -66,7 +39,17 @@ struct PopoverView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
+            if model.isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button(action: { model.refresh() }) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Refresh usage")
+            }
             Text("Updated \(Self.updatedString(model.snapshot.generatedAt))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -94,12 +77,23 @@ private struct AccountCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(account.email)
-                .font(.subheadline.bold())
-            if !account.folders.isEmpty {
-                Text(account.folders.joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .center, spacing: 8) {
+                // Per-account Clawd: colour + gauge reflect THIS account's state.
+                Image(nsImage: badge)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(account.email)
+                        .font(.subheadline.bold())
+                    // Hide the anonymous "default" folder; only show real folder names.
+                    let named = account.folders.filter { $0 != "default" }
+                    if !named.isEmpty {
+                        Text(named.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if account.hasError {
@@ -124,6 +118,22 @@ private struct AccountCard: View {
     /// Up to three windows in a stable order: session, weekly-all, weekly-Fable.
     private var windows: [RateWindow] {
         [account.session, account.weeklyAll, account.weeklyFable].compactMap { $0 }
+    }
+
+    /// Clawd for THIS account: coloured by its worst window via the shared palette
+    /// (green/orange/red), gauge filled to that window's usage.
+    private var badge: NSImage {
+        ClawdGlyph.badge(fraction: fraction, color: SeverityColor.ns(severity), height: 22)
+    }
+
+    private var severity: BarSeverity {
+        if account.hasError { return .error }
+        guard let window = account.mostConstrainedWindow else { return .stale }
+        return WindowRow.severity(of: window)
+    }
+
+    private var fraction: Double? {
+        account.mostConstrainedWindow.map { $0.usedPercent / 100 }
     }
 }
 
