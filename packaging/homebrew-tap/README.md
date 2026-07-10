@@ -1,15 +1,32 @@
-# homebrew-tap（社内配布用スケルトン）
+# homebrew-tap（配布メモ）
 
-このディレクトリは、`claude-usage-bar` を社内だけに Homebrew Cask で配る private tap
-リポジトリの雛形です。実運用では **別リポジトリ** `lig-sei-akihiro/homebrew-tap`
-（`homebrew-` プレフィックス必須 → tap 名は `lig-sei-akihiro/tap`）として **private** で作り、
-`Casks/claude-usage-bar.rb` をそこへ置きます。
+`claude-usage-bar` は Homebrew Cask で配っています。cask 本体（`Casks/claude-usage-bar.rb`）は
+**別リポジトリ** `lig-sei-akihiro/homebrew-tap`（`homebrew-` プレフィックス必須 → tap 名は
+`lig-sei-akihiro/tap`）に置いてあり、そこが唯一の正本です。このディレクトリは
+その配布に関するドキュメント専用で、cask ファイルは持ちません（重複すると
+ドリフトの原因になるため削除しました）。
 
-## 前提（この構成の割り切り）
+tap リポも source リポも **public** なので、利用者側に GitHub 認証や
+`brew trust`、明示的な tap URL は要りません。
 
-- **署名**: ad-hoc のみ（Apple Developer 契約なし）。cask の `postflight` で
-  quarantine 属性を剥がして Gatekeeper を通す。
-- **配布**: 完全 private。Release アセットの取得に GitHub 認証が要る。
+## 利用者：インストール手順
+
+tap は自動で追加されるので一行で済みます（fully-qualified 名を指定すると
+Homebrew が cask と判別して自動 tap ＋自動 trust する）。
+
+```bash
+brew install lig-sei-akihiro/tap/claude-usage-bar
+```
+
+tap を明示するなら次の二行でも同じです。
+
+```bash
+brew tap lig-sei-akihiro/tap
+brew install --cask claude-usage-bar
+```
+
+更新: `brew upgrade --cask claude-usage-bar`
+アンインストール: `brew uninstall --cask claude-usage-bar`（設定も消すなら `--zap`）
 
 ## 管理者：リリース手順
 
@@ -18,49 +35,25 @@
 ./Scripts/package_app.sh
 #    → dist/ClaudeUsageBar-<version>.zip と sha256 が表示される
 
-# 2. private な source リポの Release に zip を上げる
-gh release create v0.1.0 dist/ClaudeUsageBar-0.1.0.zip \
+# 2. source リポの Release に zip を上げる
+gh release create vX.Y.Z dist/ClaudeUsageBar-X.Y.Z.zip \
   --repo lig-sei-akihiro/claude-usage-bar
 
-# 3. tap リポの Casks/claude-usage-bar.rb の version と sha256 を更新して commit/push
+# 3. tap リポ (lig-sei-akihiro/homebrew-tap) の Casks/claude-usage-bar.rb の
+#    version と sha256 を更新して commit/push
 ```
 
-初回だけ private な tap リポを作成:
-
-```bash
-gh repo create lig-sei-akihiro/homebrew-tap --private
-# Casks/claude-usage-bar.rb を入れて push
-```
-
-## 利用者：インストール手順
-
-cask は Homebrew 組み込みの GitHub 認証ヘルパー（`GitHub::API.credentials`）を使うので、
-以下のいずれかで認証情報があれば追加設定は不要:
-
-- `gh auth login` 済み（多くの開発者が該当）
-- `export HOMEBREW_GITHUB_API_TOKEN=ghp_xxxxxxxx`（repo スコープ PAT）
-- macOS キーチェーンの GitHub 資格情報
-
-```bash
-# 1. private tap を tap。HTTPS 推奨（gh の credential helper で認証される）。
-#    SSH 鍵を GitHub に登録済みなら git@github.com:... でも可。
-brew tap lig-sei-akihiro/tap https://github.com/lig-sei-akihiro/homebrew-tap.git
-
-# 2. サードパーティ tap は trust が必須（現行 Homebrew）
-brew trust lig-sei-akihiro/tap
-
-# 3. インストール（postflight が quarantine を剥がすので --no-quarantine 不要）
-brew install --cask claude-usage-bar
-```
-
-更新: `brew upgrade --cask claude-usage-bar`
-アンインストール: `brew uninstall --cask claude-usage-bar`（設定も消すなら `--zap`）
+cask はこのリポではなく tap リポにしか無いので、`version` と `sha256` の更新は
+必ず tap リポ側の `Casks/claude-usage-bar.rb` に対して行ってください。
+public な Release アセットは静的な URL で取得でき、認証まわりの仕掛けは不要です。
 
 ## Gatekeeper に関する注意（2026-09-01〜）
 
-Homebrew は **2026年9月1日で Gatekeeper チェックを通らない cask のサポートを終了**し、
-`--no-quarantine` フラグも廃止方向。未署名（ad-hoc）アプリはこれに該当するため、
-本 cask は `postflight` で `xattr -dr com.apple.quarantine` を実行して回避している。
-これは private tap だから自分でルールを決められる前提の割り切りであり、公式
-homebrew-cask には出せない。恒久的に「素直に」配りたくなったら Apple Developer 契約
-（Developer ID 署名 + notarization）に切り替えるのが本筋。
+本体は ad-hoc 署名のみ（Apple Developer 契約なし）なので、Homebrew が
+ダウンロード時に付ける quarantine 属性のままだと Gatekeeper に弾かれます。
+cask の `postflight` で `xattr -dr com.apple.quarantine` を実行して回避しています。
+
+ただし Homebrew は **2026年9月1日で Gatekeeper チェックを通らない cask のサポートを
+終了**する方向で、quarantine を剥がす cask は公式 homebrew-cask には入れられません。
+そのため自前 tap で配っています。恒久的に「素直に」配りたくなったら Apple Developer
+契約（Developer ID 署名 + notarization）に切り替えるのが本筋です。
