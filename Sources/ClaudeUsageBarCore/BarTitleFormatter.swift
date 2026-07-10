@@ -12,9 +12,9 @@ import Foundation
 /// - `barMetric` picks the window (`.mostConstrained` uses the account's active/highest).
 /// - `percentBasis`: `.remaining` shows `remainingPercent` (default), `.used` shows `usedPercent`.
 /// - Optional metric label prefix (BarMetric.shortLabel) and reset countdown suffix.
-/// - Severity: `.error` if the shown account has an error; `.critical` when the shown
-///   window is ≥95% used (or ≤5% remaining); `.warning` when severity=="warning" or ≥85% used;
-///   `.stale` when there is no data yet; else `.normal`.
+/// - Severity: `.error` if the shown account has an error; `.critical` at/above
+///   `settings.criticalThreshold` used; `.warning` when severity=="warning" or at/above
+///   `settings.warningThreshold` used; `.stale` when there is no data yet; else `.normal`.
 public enum BarTitleFormatter {
     /// Build the single title drawn in the status item.
     public static func make(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> BarTitle {
@@ -27,7 +27,7 @@ public enum BarTitleFormatter {
         }
 
         let window = pickWindow(for: account, metric: settings.barMetric)
-        let sev = severity(account: account, window: window)
+        let sev = severity(account: account, window: window, settings: settings)
 
         guard settings.showBarText else { return BarTitle(text: "", severity: sev) }
 
@@ -87,7 +87,7 @@ public enum BarTitleFormatter {
         // the same set as `representativeFraction`: a hidden high-usage account still
         // colours the glyph to match the gauge fill.
         let worst = snapshot.accounts
-            .map { severity(account: $0, window: pickWindow(for: $0, metric: settings.barMetric)) }
+            .map { severity(account: $0, window: pickWindow(for: $0, metric: settings.barMetric), settings: settings) }
             .reduce(BarSeverity.normal, worseOf)
         let text = settings.showBarText ? lines.map(\.text).joined(separator: "\n") : ""
         return BarTitle(text: text, severity: worst)
@@ -106,7 +106,7 @@ public enum BarTitleFormatter {
                 var text = label.isEmpty ? "" : label + " "
                 text += valueFragment(window: window, settings: settings)
                 if let window { text += resetSuffix(window: window, settings: settings, now: now) }
-                return StackedLine(text: text, severity: severity(account: account, window: window))
+                return StackedLine(text: text, severity: severity(account: account, window: window, settings: settings))
             }
     }
 
@@ -162,12 +162,21 @@ public enum BarTitleFormatter {
         }
     }
 
-    private static func severity(account: AccountUsage, window: RateWindow?) -> BarSeverity {
+    private static func severity(account: AccountUsage, window: RateWindow?, settings: DisplaySettings) -> BarSeverity {
         if account.hasError { return .error }
         guard let window else { return .stale }
-        // remaining ≤ 5 ⟺ used ≥ 95, so the critical threshold is basis-independent.
-        if window.usedPercent >= 95 { return .critical }
-        if window.isWarning || window.usedPercent >= 85 { return .warning }
+        return windowSeverity(window, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold)
+    }
+
+    /// Severity for a single window against the configured used-percent thresholds.
+    /// The server's own `severity=="warning"` still escalates to at least `.warning`.
+    /// The single source of truth for severity thresholds — the menu-bar title and the
+    /// popover both call this, so a change to the thresholds moves both together.
+    /// Because the comparison is on used-percent (remaining ≤ 5 ⟺ used ≥ 95), it is
+    /// independent of the display's remaining-vs-used basis.
+    public static func windowSeverity(_ window: RateWindow, warningAt warning: Double, criticalAt critical: Double) -> BarSeverity {
+        if window.usedPercent >= critical { return .critical }
+        if window.isWarning || window.usedPercent >= warning { return .warning }
         return .normal
     }
 

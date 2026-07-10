@@ -26,6 +26,11 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    if let version = Self.appVersion {
+                        Text("v\(version)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -63,6 +68,23 @@ struct SettingsView: View {
                 .disabled(!settings.showBarText)
             }
 
+            Section("Colors") {
+                VStack(alignment: .leading, spacing: 8) {
+                    ThresholdSlider(warning: $settings.warningThreshold,
+                                    critical: $settings.criticalThreshold)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Text turns orange at \(Int(settings.warningThreshold))% used and red at \(Int(settings.criticalThreshold))%.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Reset") { settings.resetThresholds() }
+                            .controlSize(.small)
+                            .disabled(settings.thresholdsAreDefault)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
             Section("Accounts") {
                 Picker("Account", selection: $settings.accountMode) {
                     Text("Active (most constrained)").tag(AccountBarMode.active)
@@ -94,6 +116,13 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 380)
+    }
+
+    /// The bundle's marketing version (`CFBundleShortVersionString`), set by
+    /// `Scripts/package_app.sh`. `nil` in a bare `swift run` build (no Info.plist),
+    /// in which case the header simply omits the version line.
+    static var appVersion: String? {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
     }
 
     static func label(for metric: BarMetric) -> String {

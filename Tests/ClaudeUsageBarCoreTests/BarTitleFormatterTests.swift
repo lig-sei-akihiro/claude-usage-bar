@@ -126,6 +126,35 @@ struct BarTitleFormatterTests {
         #expect(remaining.text == "5h 3%")
     }
 
+    @Test func customThresholds() {
+        let settings = DisplaySettings(percentBasis: .used, warningThreshold: 70, criticalThreshold: 90)
+
+        let normal = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.session, used: 69)])]), settings: settings)
+        #expect(normal.severity == .normal)
+
+        let warning = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.session, used: 70)])]), settings: settings)
+        #expect(warning.severity == .warning)
+
+        // 88% is warning under a 90 critical threshold, but critical under the default 95.
+        let stillWarning = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.session, used: 88)])]), settings: settings)
+        #expect(stillWarning.severity == .warning)
+
+        let critical = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.session, used: 90)])]), settings: settings)
+        #expect(critical.severity == .critical)
+    }
+
+    @Test func windowSeverityIsBasisIndependent() {
+        // The shared helper the popover also calls: pure used-percent, honouring the server flag.
+        #expect(BarTitleFormatter.windowSeverity(win(.session, used: 50), warningAt: 60, criticalAt: 80) == .normal)
+        #expect(BarTitleFormatter.windowSeverity(win(.session, used: 65), warningAt: 60, criticalAt: 80) == .warning)
+        #expect(BarTitleFormatter.windowSeverity(win(.session, used: 85), warningAt: 60, criticalAt: 80) == .critical)
+        #expect(BarTitleFormatter.windowSeverity(win(.session, used: 5, severity: "warning"), warningAt: 60, criticalAt: 80) == .warning)
+    }
+
     @Test func errorSeverity() {
         let out = BarTitleFormatter.make(
             from: snapshot([account("a@x", [], error: "auth expired")]),
