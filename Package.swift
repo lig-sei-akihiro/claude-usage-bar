@@ -12,7 +12,6 @@ let package = Package(
     products: [
         .library(name: "ClaudeUsageBarCore", targets: ["ClaudeUsageBarCore"]),
         .executable(name: "ClaudeUsageBar", targets: ["ClaudeUsageBar"]),
-        .executable(name: "ClaudeUsageBarWidget", targets: ["ClaudeUsageBarWidget"]),
     ],
     targets: [
         // Pure logic: config discovery, Keychain, usage API, formatting. No AppKit — unit-testable.
@@ -22,11 +21,6 @@ let package = Package(
         // The menu bar app: NSStatusItem + SwiftUI popover/settings hosted via AppKit.
         .executableTarget(
             name: "ClaudeUsageBar",
-            dependencies: ["ClaudeUsageBarCore"]
-        ),
-        // WidgetKit widget (packaged into the app as a .appex by Scripts/package_app.sh).
-        .executableTarget(
-            name: "ClaudeUsageBarWidget",
             dependencies: ["ClaudeUsageBarCore"]
         ),
         .testTarget(

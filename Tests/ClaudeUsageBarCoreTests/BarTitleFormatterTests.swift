@@ -28,8 +28,8 @@ struct BarTitleFormatterTests {
         )
     }
 
-    private func account(_ email: String, _ windows: [RateWindow], error: String? = nil) -> AccountUsage {
-        AccountUsage(email: email, folders: ["f"], windows: windows, error: error)
+    private func account(_ email: String, _ windows: [RateWindow], folders: [String] = ["f"], error: String? = nil) -> AccountUsage {
+        AccountUsage(email: email, folders: folders, windows: windows, error: error)
     }
 
     private func snapshot(_ accounts: [AccountUsage]) -> UsageSnapshot {
@@ -145,6 +145,16 @@ struct BarTitleFormatterTests {
         #expect(out.text == "5h 40% · 2h12m")
     }
 
+    @Test func resetTimeSuffixUsesJSTClock() {
+        // 1_000_000s past the 1970 epoch is 1970-01-12 13:46:40 UTC; the +30s round
+        // lands on 13:47, and +9h JST gives 22:47.
+        let resets = Date(timeIntervalSince1970: 1_000_000)
+        let out = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.session, used: 40, resets: resets)])]),
+            settings: DisplaySettings(percentBasis: .used, resetDisplay: .time))
+        #expect(out.text == "5h 40% · 22:47")
+    }
+
     // MARK: - showBarText == false
 
     @Test func showBarTextFalseYieldsEmptyTextButRealSeverity() {
@@ -180,13 +190,74 @@ struct BarTitleFormatterTests {
 
     // MARK: - .all
 
-    @Test func allModeJoinsFragmentsAndTakesWorstSeverity() {
-        let a = account("a@x", [win(.session, used: 40)])
-        let b = account("b@x", [win(.session, used: 96)])
+    @Test func allModeStacksLabelledLinesWorstFirstAndTakesWorstSeverity() {
+        let a = account("a@x", [win(.session, used: 40)], folders: ["main"])
+        let b = account("b@x", [win(.session, used: 96)], folders: ["sub"])
         let out = BarTitleFormatter.make(
             from: snapshot([a, b]),
             settings: DisplaySettings(percentBasis: .used, accountMode: .all))
-        #expect(out.text == "5h 40% | 5h 96%")
+
+        let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        #expect(lines.count == 2)
+        // Most-constrained account leads.
+        #expect(lines[0] == "sub 5h 96%")
+        #expect(lines[1] == "main 5h 40%")
+        #expect(out.severity == .critical)
+    }
+
+    @Test func allModeCapsAtTwoMostConstrainedLines() {
+        let a = account("a@x", [win(.session, used: 10)], folders: ["a"])
+        let b = account("b@x", [win(.session, used: 90)], folders: ["b"])
+        let c = account("c@x", [win(.session, used: 50)], folders: ["c"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a, b, c]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+
+        let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        #expect(lines.count == 2)
+        #expect(lines[0] == "b 5h 90%")
+        #expect(lines[1] == "c 5h 50%")
+    }
+
+    @Test func allModeSingleAccountIsOneLabelledLine() {
+        let a = account("solo@x", [win(.session, used: 30)], folders: ["only"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+        #expect(out.text == "only 5h 30%")
+        #expect(!out.text.contains("\n"))
+    }
+
+    @Test func allModeLabelFallsBackToEmailPrefixWhenNoFolders() {
+        let a = account("nofolders@x", [win(.session, used: 20)], folders: [])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+        #expect(out.text == "nofolders 5h 20%")
+    }
+
+    @Test func allModeAppliesResetSuffixPerLine() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let resets = now.addingTimeInterval(3600)
+        let a = account("a@x", [win(.session, used: 40, resets: resets)], folders: ["main"])
+        let b = account("b@x", [win(.session, used: 96, resets: resets)], folders: ["sub"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a, b]),
+            settings: DisplaySettings(percentBasis: .used, resetDisplay: .countdown, accountMode: .all),
+            now: now)
+
+        let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        #expect(lines[0] == "sub 5h 96% · 1h0m")
+        #expect(lines[1] == "main 5h 40% · 1h0m")
+    }
+
+    @Test func allModeHonoursShowBarTextFalse() {
+        let a = account("a@x", [win(.session, used: 40)], folders: ["main"])
+        let b = account("b@x", [win(.session, used: 96)], folders: ["sub"])
+        let out = BarTitleFormatter.make(
+            from: snapshot([a, b]),
+            settings: DisplaySettings(showBarText: false, percentBasis: .used, accountMode: .all))
+        #expect(out.text == "")
         #expect(out.severity == .critical)
     }
 

@@ -8,8 +8,8 @@ import Foundation
 /// Contract:
 /// - Respect `settings.showBarText` (caller may still want an icon when false).
 /// - `accountMode`: `.active` → most-constrained account; `.pinned` → matching
-///   `pinnedEmail` (fall back to active if not found); `.all` → join per-account
-///   fragments with " | ".
+///   `pinnedEmail` (fall back to active if not found); `.all` → a multi-line title,
+///   one account per line (capped at the 2 most-constrained), each line labelled.
 /// - `barMetric` picks the window (`.mostConstrained` uses the account's active/highest).
 /// - `percentBasis`: `.remaining` shows `remainingPercent` (default), `.used` shows `usedPercent`.
 /// - Optional metric label prefix (BarMetric.shortLabel) and reset countdown suffix.
@@ -20,7 +20,7 @@ public enum BarTitleFormatter {
     /// Build the single title drawn in the status item.
     public static func make(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> BarTitle {
         if settings.accountMode == .all {
-            return makeAll(from: snapshot, settings: settings)
+            return makeAll(from: snapshot, settings: settings, now: now)
         }
 
         guard let account = selectedAccount(from: snapshot, settings: settings) else {
@@ -61,20 +61,37 @@ public enum BarTitleFormatter {
 
     // MARK: - Private
 
-    /// `.all` mode: one compact fragment per account joined by " | ", worst severity wins.
-    private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings) -> BarTitle {
+    /// `.all` mode: a multi-line title, one labelled account per line, capped at the
+    /// 2 most-constrained accounts (by `mostConstrainedWindow.usedPercent`, worst first).
+    /// Lines join with "\n" for the renderer to stack; severity is the worst of the shown.
+    private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date) -> BarTitle {
         guard !snapshot.accounts.isEmpty else { return BarTitle(text: "", severity: .stale) }
 
+        let shown = snapshot.accounts
+            .sorted { ($0.mostConstrainedWindow?.usedPercent ?? 0) > ($1.mostConstrainedWindow?.usedPercent ?? 0) }
+            .prefix(2)
+
         var worst: BarSeverity = .normal
-        var fragments: [String] = []
-        for account in snapshot.accounts {
+        var lines: [String] = []
+        for account in shown {
             let window = pickWindow(for: account, metric: settings.barMetric)
             worst = worseOf(worst, severity(account: account, window: window))
-            fragments.append(valueFragment(window: window, settings: settings))
+            var line = accountLabel(account) + " " + valueFragment(window: window, settings: settings)
+            if let window { line += resetSuffix(window: window, settings: settings, now: now) }
+            lines.append(line)
         }
 
-        let text = settings.showBarText ? fragments.joined(separator: " | ") : ""
+        let text = settings.showBarText ? lines.joined(separator: "\n") : ""
         return BarTitle(text: text, severity: worst)
+    }
+
+    /// Short label identifying an account on its stacked line: the config folders,
+    /// falling back to the email's local part.
+    private static func accountLabel(_ account: AccountUsage) -> String {
+        let folders = account.folders.joined(separator: "/")
+        if !folders.isEmpty { return folders }
+        if let at = account.email.firstIndex(of: "@") { return String(account.email[..<at]) }
+        return account.email
     }
 
     /// The metric value fragment (label + number + % sign), without the countdown suffix.

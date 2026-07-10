@@ -55,6 +55,11 @@ struct SettingsView: View {
                     Text("Pinned account").tag(AccountBarMode.pinned)
                     Text("All accounts").tag(AccountBarMode.all)
                 }
+                if settings.accountMode == .all {
+                    Text("Stacks each account on its own line in the menu bar (max 2).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if settings.accountMode == .pinned {
                     Picker("Pinned", selection: $settings.pinnedEmail) {
                         Text("—").tag(String?.none)

@@ -170,11 +170,27 @@ final class StatusItemController {
         let color = tintColor(for: title.severity)
 
         if settings.showBarText && !title.text.isEmpty {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: color,
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-            ]
-            button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
+            if title.text.contains("\n") {
+                // Stacked 2-line title: shrink the font and tighten line metrics so both
+                // lines fit inside the ~22pt menu bar. Right-aligned to match the bar edge.
+                let paragraph = NSMutableParagraphStyle()
+                paragraph.alignment = .right
+                paragraph.lineSpacing = 0
+                paragraph.maximumLineHeight = 10
+                paragraph.minimumLineHeight = 10
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .foregroundColor: color,
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .regular),
+                    .paragraphStyle: paragraph
+                ]
+                button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
+            } else {
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .foregroundColor: color,
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+                ]
+                button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
+            }
             button.image = nil
         } else {
             button.attributedTitle = NSAttributedString(string: "")
