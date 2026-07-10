@@ -19,11 +19,13 @@ public struct UsageService: Sendable {
     /// Produce a snapshot across all discovered accounts. Fetches run concurrently;
     /// per-account failures become `AccountUsage.error` rather than throwing.
     public func snapshot(now: Date = Date()) async -> UsageSnapshot {
-        // Group folders by authenticated email; nil email collapses under "(unknown)".
+        // Group folders by authenticated email. Config dirs without an email (e.g. a
+        // bare ~/.claude) are not real accounts — skip them so they never appear as
+        // "(unknown)" in the popover or feed the menu bar title.
         // Discovery is sorted by configDir, so folder order within a group is stable.
         var groups: [String: [(folder: String, dir: String)]] = [:]
         for account in ConfigDiscovery.discover() {
-            let email = account.email ?? "(unknown)"
+            guard let email = account.email else { continue }
             groups[email, default: []].append((account.folderName, account.configDir))
         }
 
