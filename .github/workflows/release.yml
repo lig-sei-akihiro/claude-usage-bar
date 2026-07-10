@@ -38,9 +38,20 @@ jobs:
         run: echo "sha=$(shasum -a 256 "dist/ClaudeUsageBar-${{ steps.v.outputs.version }}.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A release for this tag already existing means a re-run or a duplicate
+          # tag push. Don't clobber: the ad-hoc-signed build is not reproducible,
+          # so a rebuilt zip has a different sha256 — overwriting would swap out an
+          # already-published, already-downloaded asset and desync the tap cask.
+          # Warn and no-op instead (this also gates the tap-update step below).
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::warning::Release $GITHUB_REF_NAME already exists — skipping create & tap update. To redo, delete the release and tag, then re-push."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           gh release create "$GITHUB_REF_NAME" \
             "dist/ClaudeUsageBar-${{ steps.v.outputs.version }}.zip" \
             --title "$GITHUB_REF_NAME" \
@@ -49,7 +60,7 @@ jobs:
       # Bump version + sha256 in the tap's static-URL cask. The cask's `url` uses
       # `#{version}` interpolation, so only these two lines change per release.
       - name: Update Homebrew tap cask
-        if: ${{ env.TAP_TOKEN != '' }}
+        if: ${{ env.TAP_TOKEN != '' && steps.release.outputs.skipped != 'true' }}
         env:
           VERSION: ${{ steps.v.outputs.version }}
           SHA: ${{ steps.sha.outputs.sha }}
