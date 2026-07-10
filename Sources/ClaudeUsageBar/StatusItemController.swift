@@ -23,9 +23,13 @@ final class StatusItemController {
 
         self.popover = NSPopover()
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
-            rootView: PopoverView().environmentObject(model)
-        )
+        // Canonical fix for the NSPopover "contentSize trap": NSPopover defaults to
+        // 320x320 and silently clips taller SwiftUI content. sizingOptions =
+        // .preferredContentSize makes the hosting controller report the SwiftUI ideal
+        // size, so the popover auto-sizes to fit (no clip, no scroll needed).
+        let hosting = NSHostingController(rootView: PopoverView().environmentObject(model))
+        hosting.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = hosting
 
         if let button = statusItem.button {
             button.target = self

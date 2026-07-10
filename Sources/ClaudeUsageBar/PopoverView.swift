@@ -187,21 +187,17 @@ private struct WindowRow: View {
 // MARK: - Usage bar
 
 /// A horizontal fill bar; `fraction` is 0...1 of budget used.
+///
+/// Uses ProgressView instead of a GeometryReader-based bar: GeometryReader is greedy
+/// and, inside a self-sizing popover, drives layout-recursion warnings (a documented
+/// pitfall in similar menu bar apps). ProgressView sizes cleanly to the row width.
 private struct UsageBar: View {
     let fraction: Double
     let color: Color
 
     var body: some View {
-        GeometryReader { geo in
-            let clamped = max(0, min(1, fraction))
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.primary.opacity(0.12))
-                Capsule()
-                    .fill(color)
-                    .frame(width: geo.size.width * clamped)
-            }
-        }
-        .frame(height: 6)
+        ProgressView(value: max(0, min(1, fraction)))
+            .progressViewStyle(.linear)
+            .tint(color)
     }
 }
