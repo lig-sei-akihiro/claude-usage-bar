@@ -92,27 +92,28 @@ final class StatusItemController {
     private func openSettings() {
         popover.performClose(nil)
 
-        let window: NSWindow
-        if let existing = settingsWindow {
-            window = existing
-        } else {
-            window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 420, height: 480),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "claude-usage-bar Settings"
-            window.isReleasedWhenClosed = false
-            window.center()
-            settingsWindow = window
-        }
-
-        // Rebuild the hosting view so the account list reflects the latest snapshot.
-        window.contentView = NSHostingView(
+        // Host via a controller so the window adopts the SwiftUI content's fitting
+        // size. Rebuilt each open so the account list reflects the latest snapshot.
+        let hosting = NSHostingController(
             rootView: SettingsView(settings: model.settings, accounts: model.snapshot.accounts)
         )
 
+        let window: NSWindow
+        if let existing = settingsWindow {
+            window = existing
+            window.contentViewController = hosting
+        } else {
+            window = NSWindow(contentViewController: hosting)
+            window.styleMask = [.titled, .closable]
+            window.title = "claude-usage-bar Settings"
+            window.isReleasedWhenClosed = false
+            settingsWindow = window
+        }
+
+        // Center *after* the window has taken the content's size, so it can never
+        // grow off the top of the screen (macOS windows are anchored bottom-left).
+        window.layoutIfNeeded()
+        window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
