@@ -44,15 +44,25 @@ public enum AccountBarMode: String, Sendable, CaseIterable, Codable {
     case all
 }
 
+/// What reset info (if any) the bar title appends after the percent.
+public enum ResetDisplay: String, Sendable, CaseIterable, Codable {
+    /// Nothing. Default.
+    case none
+    /// Time until reset, e.g. "· 3h12m".
+    case countdown
+    /// Clock time of the reset (JST), e.g. "· 12:49".
+    case time
+}
+
 /// The knobs that decide the bar title. Sensible defaults satisfy requirement #4
-/// (5-hour remaining, visible at a glance) out of the box.
+/// (5-hour usage, visible at a glance) out of the box.
 public struct DisplaySettings: Sendable, Equatable, Codable {
     /// Master toggle for the bar text (requirement #6). When false, only an icon shows.
     public var showBarText: Bool
     public var barMetric: BarMetric
     public var percentBasis: PercentBasis
-    /// Append the reset countdown, e.g. "5h 42% · 3h12m".
-    public var showResetCountdown: Bool
+    /// Whether/how to append reset info to the bar (requirement: show reset time too).
+    public var resetDisplay: ResetDisplay
     /// Render the "%" sign after the number.
     public var showPercentSign: Bool
     /// Prefix the metric label, e.g. "5h ".
@@ -65,7 +75,7 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
         showBarText: Bool = true,
         barMetric: BarMetric = .session,
         percentBasis: PercentBasis = .used,
-        showResetCountdown: Bool = false,
+        resetDisplay: ResetDisplay = .none,
         showPercentSign: Bool = true,
         showMetricLabel: Bool = true,
         accountMode: AccountBarMode = .active,
@@ -74,7 +84,7 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
         self.showBarText = showBarText
         self.barMetric = barMetric
         self.percentBasis = percentBasis
-        self.showResetCountdown = showResetCountdown
+        self.resetDisplay = resetDisplay
         self.showPercentSign = showPercentSign
         self.showMetricLabel = showMetricLabel
         self.accountMode = accountMode

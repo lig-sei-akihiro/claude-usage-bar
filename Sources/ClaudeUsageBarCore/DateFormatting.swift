@@ -14,6 +14,16 @@ public enum DateFormatting {
         return String(format: "%d/%d %02d:%02d", c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
     }
 
+    /// JST "HH:mm" only (no date) — compact reset clock time for the menu bar.
+    public static func jstResetShortTime(_ date: Date?) -> String {
+        guard let date else { return "" }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 9 * 3600)!
+        let rounded = date.addingTimeInterval(30)
+        let c = cal.dateComponents([.hour, .minute], from: rounded)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
+
     /// Compact time-until countdown: "3h12m", "48m", or "now" when already elapsed.
     public static func countdownString(to date: Date?, now: Date = Date()) -> String {
         guard let date else { return "" }

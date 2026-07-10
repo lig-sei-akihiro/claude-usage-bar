@@ -140,7 +140,7 @@ struct BarTitleFormatterTests {
         let resets = now.addingTimeInterval(2 * 3600 + 12 * 60)
         let out = BarTitleFormatter.make(
             from: snapshot([account("a@x", [win(.session, used: 40, resets: resets)])]),
-            settings: DisplaySettings(percentBasis: .used, showResetCountdown: true),
+            settings: DisplaySettings(percentBasis: .used, resetDisplay: .countdown),
             now: now)
         #expect(out.text == "5h 40% · 2h12m")
     }

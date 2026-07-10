@@ -38,6 +38,7 @@ final class SettingsStore: ObservableObject {
         static let showResetCountdown = "showResetCountdown"
         static let showPercentSign = "showPercentSign"
         static let showMetricLabel = "showMetricLabel"
+        static let resetDisplay = "resetDisplay"
         static let accountMode = "accountMode"
         static let pinnedEmail = "pinnedEmail"
         static let refreshInterval = "refreshInterval"
@@ -48,7 +49,7 @@ final class SettingsStore: ObservableObject {
     @Published var showBarText: Bool { didSet { defaults.set(showBarText, forKey: Key.showBarText) } }
     @Published var barMetric: BarMetric { didSet { defaults.set(barMetric.rawValue, forKey: Key.barMetric) } }
     @Published var percentBasis: PercentBasis { didSet { defaults.set(percentBasis.rawValue, forKey: Key.percentBasis) } }
-    @Published var showResetCountdown: Bool { didSet { defaults.set(showResetCountdown, forKey: Key.showResetCountdown) } }
+    @Published var resetDisplay: ResetDisplay { didSet { defaults.set(resetDisplay.rawValue, forKey: Key.resetDisplay) } }
     @Published var showPercentSign: Bool { didSet { defaults.set(showPercentSign, forKey: Key.showPercentSign) } }
     @Published var showMetricLabel: Bool { didSet { defaults.set(showMetricLabel, forKey: Key.showMetricLabel) } }
     @Published var accountMode: AccountBarMode { didSet { defaults.set(accountMode.rawValue, forKey: Key.accountMode) } }
@@ -67,7 +68,7 @@ final class SettingsStore: ObservableObject {
         self.showBarText = defaults.object(forKey: Key.showBarText) as? Bool ?? d.showBarText
         self.barMetric = (defaults.string(forKey: Key.barMetric).flatMap(BarMetric.init(rawValue:))) ?? d.barMetric
         self.percentBasis = (defaults.string(forKey: Key.percentBasis).flatMap(PercentBasis.init(rawValue:))) ?? d.percentBasis
-        self.showResetCountdown = defaults.object(forKey: Key.showResetCountdown) as? Bool ?? d.showResetCountdown
+        self.resetDisplay = (defaults.string(forKey: Key.resetDisplay).flatMap(ResetDisplay.init(rawValue:))) ?? d.resetDisplay
         self.showPercentSign = defaults.object(forKey: Key.showPercentSign) as? Bool ?? d.showPercentSign
         self.showMetricLabel = defaults.object(forKey: Key.showMetricLabel) as? Bool ?? d.showMetricLabel
         self.accountMode = (defaults.string(forKey: Key.accountMode).flatMap(AccountBarMode.init(rawValue:))) ?? d.accountMode
@@ -81,7 +82,7 @@ final class SettingsStore: ObservableObject {
             showBarText: showBarText,
             barMetric: barMetric,
             percentBasis: percentBasis,
-            showResetCountdown: showResetCountdown,
+            resetDisplay: resetDisplay,
             showPercentSign: showPercentSign,
             showMetricLabel: showMetricLabel,
             accountMode: accountMode,

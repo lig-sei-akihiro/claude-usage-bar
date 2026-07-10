@@ -40,7 +40,11 @@ struct SettingsView: View {
                     }
                     Toggle("Metric label", isOn: $settings.showMetricLabel)
                     Toggle("Percent sign", isOn: $settings.showPercentSign)
-                    Toggle("Reset countdown", isOn: $settings.showResetCountdown)
+                    Picker("Reset", selection: $settings.resetDisplay) {
+                        Text("Off").tag(ResetDisplay.none)
+                        Text("Countdown").tag(ResetDisplay.countdown)
+                        Text("Time").tag(ResetDisplay.time)
+                    }
                 }
                 .disabled(!settings.showBarText)
             }

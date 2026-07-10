@@ -33,10 +33,7 @@ public enum BarTitleFormatter {
         guard settings.showBarText else { return BarTitle(text: "", severity: sev) }
 
         var text = valueFragment(window: window, settings: settings)
-        if settings.showResetCountdown, let window {
-            let cd = DateFormatting.countdownString(to: window.resetsAt, now: now)
-            if !cd.isEmpty { text += " · \(cd)" }
-        }
+        if let window { text += resetSuffix(window: window, settings: settings, now: now) }
         return BarTitle(text: text, severity: sev)
     }
 
@@ -92,6 +89,20 @@ public enum BarTitleFormatter {
         }
         if settings.showPercentSign { s += "%" }
         return s
+    }
+
+    /// Reset info appended to a fragment, per `settings.resetDisplay`.
+    private static func resetSuffix(window: RateWindow, settings: DisplaySettings, now: Date) -> String {
+        switch settings.resetDisplay {
+        case .none:
+            return ""
+        case .countdown:
+            let cd = DateFormatting.countdownString(to: window.resetsAt, now: now)
+            return cd.isEmpty ? "" : " · \(cd)"
+        case .time:
+            let t = DateFormatting.jstResetShortTime(window.resetsAt)
+            return t.isEmpty ? "" : " · \(t)"
+        }
     }
 
     private static func pickWindow(for account: AccountUsage, metric: BarMetric) -> RateWindow? {
