@@ -92,28 +92,32 @@ final class StatusItemController {
     private func openSettings() {
         popover.performClose(nil)
 
-        // Host via a controller so the window adopts the SwiftUI content's fitting
-        // size. Rebuilt each open so the account list reflects the latest snapshot.
-        let hosting = NSHostingController(
+        // Fixed-size window. `sizingOptions = []` stops the hosting view from resizing
+        // the window to the SwiftUI content — which previously either grew it off the
+        // top of the screen or collapsed it to an empty pane. The content fills the
+        // fixed frame and the grouped Form scrolls if it is taller.
+        let hostingView = NSHostingView(
             rootView: SettingsView(settings: model.settings, accounts: model.snapshot.accounts)
         )
+        hostingView.sizingOptions = []
 
         let window: NSWindow
         if let existing = settingsWindow {
             window = existing
-            window.contentViewController = hosting
         } else {
-            window = NSWindow(contentViewController: hosting)
-            window.styleMask = [.titled, .closable]
+            window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 580),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
             window.title = "claude-usage-bar Settings"
             window.isReleasedWhenClosed = false
+            window.center()
             settingsWindow = window
         }
+        window.contentView = hostingView
 
-        // Center *after* the window has taken the content's size, so it can never
-        // grow off the top of the screen (macOS windows are anchored bottom-left).
-        window.layoutIfNeeded()
-        window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
@@ -170,10 +174,16 @@ final class StatusItemController {
             let image = NSImage(
                 systemSymbolName: "gauge.with.dots.needle.33percent",
                 accessibilityDescription: "Claude usage"
-            ) ?? NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Claude usage")
+            ) ?? NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Claude usage")
             image?.isTemplate = true
             button.image = image
-            button.contentTintColor = color
+            // Only tint for attention states; leave normal/stale as the adaptive
+            // template so the icon is always crisply visible and clickable (the way
+            // back from icon-only mode is clicking it → popover → Settings).
+            switch title.severity {
+            case .warning, .critical, .error: button.contentTintColor = color
+            case .normal, .stale: button.contentTintColor = nil
+            }
         }
     }
 

@@ -21,9 +21,16 @@ struct PopoverView: View {
             if model.snapshot.accounts.isEmpty {
                 emptyState
             } else {
-                ForEach(model.snapshot.accounts) { account in
-                    AccountCard(account: account, basis: model.settings.percentBasis)
+                // Scroll the account list so many accounts / windows never push the
+                // popover past the bottom of the screen (it doesn't scroll on its own).
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.snapshot.accounts) { account in
+                            AccountCard(account: account, basis: model.settings.percentBasis)
+                        }
+                    }
                 }
+                .frame(maxHeight: 420)
             }
 
             Divider()
