@@ -58,6 +58,19 @@ codesign --force --sign - "$APP"
 
 echo "✓ Built $APP"
 codesign -dv "$APP" 2>&1 | sed 's/^/    /' || true
+
+# Zip for Homebrew Cask distribution (ditto keeps the .app bundle intact).
+ZIP="dist/$APP_NAME-$VERSION.zip"
+echo "▸ Zipping ${ZIP}…"
+rm -f "$ZIP"
+ditto -c -k --keepParent "$APP" "$ZIP"
+SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
+echo "✓ Built $ZIP"
+echo "    version: $VERSION"
+echo "    sha256:  $SHA"
+
 echo
-echo "Install:   cp -R \"$APP\" /Applications/    then right-click → Open (first launch)"
-echo "Run once:  open \"$APP\""
+echo "Install (local): cp -R \"$APP\" /Applications/    then right-click → Open (first launch)"
+echo "Run once:        open \"$APP\""
+echo "Release (cask):  gh release create v$VERSION \"$ZIP\" --repo lig-sei-akihiro/claude-usage-bar"
+echo "                 then set version=$VERSION / sha256=$SHA in the tap's Casks/claude-usage-bar.rb"
