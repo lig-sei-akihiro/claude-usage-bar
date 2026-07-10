@@ -42,10 +42,13 @@ cask は Homebrew 組み込みの GitHub 認証ヘルパー（`GitHub::API.crede
 - macOS キーチェーンの GitHub 資格情報
 
 ```bash
-# 1. private tap を SSH で tap（git 認証を使う）
+# 1. private tap を tap（git 認証を使う）。gh の credential helper があれば HTTPS でも可
 brew tap lig-sei-akihiro/tap git@github.com:lig-sei-akihiro/homebrew-tap.git
 
-# 2. インストール（postflight が quarantine を剥がすので --no-quarantine 不要）
+# 2. サードパーティ tap は trust が必須（現行 Homebrew）
+brew trust lig-sei-akihiro/tap
+
+# 3. インストール（postflight が quarantine を剥がすので --no-quarantine 不要）
 brew install --cask claude-usage-bar
 ```
 
