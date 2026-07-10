@@ -24,22 +24,26 @@ struct SettingsView: View {
             }
 
             Section("Menu Bar") {
+                // The master toggle must stay OUTSIDE the .disabled scope, or turning
+                // it off disables itself and you can never turn it back on.
                 Toggle("Show text in menu bar", isOn: $settings.showBarText)
 
-                Picker("Metric", selection: $settings.barMetric) {
-                    ForEach(BarMetric.allCases, id: \.self) { metric in
-                        Text(Self.label(for: metric)).tag(metric)
+                Group {
+                    Picker("Metric", selection: $settings.barMetric) {
+                        ForEach(BarMetric.allCases, id: \.self) { metric in
+                            Text(Self.label(for: metric)).tag(metric)
+                        }
                     }
+                    Picker("Show", selection: $settings.percentBasis) {
+                        Text("Remaining").tag(PercentBasis.remaining)
+                        Text("Used").tag(PercentBasis.used)
+                    }
+                    Toggle("Metric label", isOn: $settings.showMetricLabel)
+                    Toggle("Percent sign", isOn: $settings.showPercentSign)
+                    Toggle("Reset countdown", isOn: $settings.showResetCountdown)
                 }
-                Picker("Show", selection: $settings.percentBasis) {
-                    Text("Remaining").tag(PercentBasis.remaining)
-                    Text("Used").tag(PercentBasis.used)
-                }
-                Toggle("Metric label", isOn: $settings.showMetricLabel)
-                Toggle("Percent sign", isOn: $settings.showPercentSign)
-                Toggle("Reset countdown", isOn: $settings.showResetCountdown)
+                .disabled(!settings.showBarText)
             }
-            .disabled(!settings.showBarText)
 
             Section("Accounts") {
                 Picker("Account", selection: $settings.accountMode) {

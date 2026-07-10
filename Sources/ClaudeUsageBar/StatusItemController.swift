@@ -113,6 +113,9 @@ final class StatusItemController {
             )
             window.title = "claude-usage-bar Settings"
             window.isReleasedWhenClosed = false
+            // Follow the user across Spaces: reopening brings the window to the active
+            // desktop instead of switching back to the Space it first appeared on.
+            window.collectionBehavior.insert(.moveToActiveSpace)
             window.center()
             settingsWindow = window
         }
