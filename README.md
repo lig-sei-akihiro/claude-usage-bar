@@ -6,8 +6,8 @@ Claude Code の usage / status に特化した macOS メニューバーアプリ
 
 ## できること
 
-- **メニューバーを開かずに 5 時間枠の残量が分かる**（要件 #4）
-  ステータスアイテムのタイトルに、5h セッション枠の「残り %」を常時表示。残量が減ると色（normal → warning → critical）で警告します。
+- **メニューバーを開かずに 5 時間枠の使用状況が分かる**（要件 #4）
+  ステータスアイテムのタイトルに、5h セッション枠の「利用した %」を常時表示（`claude-usage-all` と同じ基準）。使用量が増えると色（normal → warning → critical）で警告します。設定で「残り %」表示にも切り替えられます。
 - **複数アカウント対応**（要件 #5）
   `~/.claude*` 配下の各 config dir を列挙し、`claude-usage-all` と同じく **認証（メール）単位**で集約。同一メールを共有する複数フォルダは 1 アカウントにまとめます。
 - **表示は設定で自由に切り替え（iStat Menus 風）**（要件 #6）
@@ -25,7 +25,7 @@ Claude Code の usage / status に特化した macOS メニューバーアプリ
 4. `GET https://api.anthropic.com/api/oauth/usage`（ヘッダ `anthropic-beta: oauth-2025-04-20` + Bearer）を並列取得
 5. `limits[]` を session / weekly_all / weekly_scoped(Fable) にマッピング
 
-> ℹ️ `/usage` API は subscription プランでは**利用率（%）**を返し、絶対トークン数は返しません。そのため「残りトークン」は残り % として表示します。
+> ℹ️ `/usage` API は subscription プランでは**利用率（%）**を返し、絶対トークン数は返しません。そのため数値は % で表示します（既定は「利用した %」、設定で「残り %」に切替可）。
 
 ## アーキテクチャ
 

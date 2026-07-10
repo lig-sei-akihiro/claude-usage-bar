@@ -26,11 +26,12 @@ public enum BarMetric: String, Sendable, CaseIterable, Codable {
     }
 }
 
-/// Whether the percent shown is budget remaining or budget used.
+/// Whether the percent shown is budget used or budget remaining.
 public enum PercentBasis: String, Sendable, CaseIterable, Codable {
-    /// 100 − used. Default, because requirement #4 asks for the *remaining* amount (残り).
-    case remaining
+    /// The percent used — the default, matching the `claude-usage-all` command.
     case used
+    /// 100 − used. Opt-in via settings for those who prefer "budget left".
+    case remaining
 }
 
 /// How multiple accounts collapse into a single bar title.
@@ -63,7 +64,7 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
     public init(
         showBarText: Bool = true,
         barMetric: BarMetric = .session,
-        percentBasis: PercentBasis = .remaining,
+        percentBasis: PercentBasis = .used,
         showResetCountdown: Bool = false,
         showPercentSign: Bool = true,
         showMetricLabel: Bool = true,
