@@ -14,7 +14,10 @@ struct PopoverView: View {
             } else {
                 // No scroll — the popover sizes to fit its content.
                 ForEach(model.snapshot.accounts) { account in
-                    AccountCard(account: account, basis: model.settings.percentBasis)
+                    AccountCard(account: account,
+                                basis: model.settings.percentBasis,
+                                warningAt: model.settings.warningThreshold,
+                                criticalAt: model.settings.criticalThreshold)
                 }
             }
 
@@ -74,6 +77,8 @@ struct PopoverView: View {
 private struct AccountCard: View {
     let account: AccountUsage
     let basis: PercentBasis
+    let warningAt: Double
+    let criticalAt: Double
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -106,7 +111,7 @@ private struct AccountCard: View {
                 .foregroundStyle(.red)
             } else {
                 ForEach(windows, id: \.kind) { window in
-                    WindowRow(window: window, basis: basis)
+                    WindowRow(window: window, basis: basis, warningAt: warningAt, criticalAt: criticalAt)
                 }
             }
         }
@@ -129,7 +134,7 @@ private struct AccountCard: View {
     private var severity: BarSeverity {
         if account.hasError { return .error }
         guard let window = account.mostConstrainedWindow else { return .stale }
-        return WindowRow.severity(of: window)
+        return BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt)
     }
 
     private var fraction: Double? {
@@ -143,9 +148,11 @@ private struct AccountCard: View {
 private struct WindowRow: View {
     let window: RateWindow
     let basis: PercentBasis
+    let warningAt: Double
+    let criticalAt: Double
 
     var body: some View {
-        let color = Self.color(for: Self.severity(of: window))
+        let color = Self.color(for: BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt))
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(window.label)
@@ -176,13 +183,6 @@ private struct WindowRow: View {
         let jst = DateFormatting.jstResetString(window.resetsAt)
         let countdown = DateFormatting.countdownString(to: window.resetsAt)
         return countdown.isEmpty ? "resets \(jst)" : "resets \(jst) · \(countdown)"
-    }
-
-    // Severity thresholds (mirror BarTitleFormatter's contract).
-    static func severity(of window: RateWindow) -> BarSeverity {
-        if window.usedPercent >= 95 || window.remainingPercent <= 5 { return .critical }
-        if window.isWarning || window.usedPercent >= 85 { return .warning }
-        return .normal
     }
 
     static func color(for severity: BarSeverity) -> Color {

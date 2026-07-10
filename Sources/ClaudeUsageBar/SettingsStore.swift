@@ -40,6 +40,8 @@ final class SettingsStore: ObservableObject {
         static let accountMode = "accountMode"
         static let pinnedEmail = "pinnedEmail"
         static let refreshInterval = "refreshInterval"
+        static let warningThreshold = "warningThreshold"
+        static let criticalThreshold = "criticalThreshold"
     }
 
     // MARK: Bar display
@@ -52,6 +54,11 @@ final class SettingsStore: ObservableObject {
     @Published var showMetricLabel: Bool { didSet { defaults.set(showMetricLabel, forKey: Key.showMetricLabel) } }
     @Published var accountMode: AccountBarMode { didSet { defaults.set(accountMode.rawValue, forKey: Key.accountMode) } }
     @Published var pinnedEmail: String? { didSet { defaults.set(pinnedEmail, forKey: Key.pinnedEmail) } }
+
+    /// Used-percent thresholds for the severity colours. The `ThresholdSlider` keeps
+    /// them valid (1...99, critical ≥ warning + 1); these setters only persist.
+    @Published var warningThreshold: Double { didSet { defaults.set(warningThreshold, forKey: Key.warningThreshold) } }
+    @Published var criticalThreshold: Double { didSet { defaults.set(criticalThreshold, forKey: Key.criticalThreshold) } }
 
     // MARK: Refresh
 
@@ -75,6 +82,27 @@ final class SettingsStore: ObservableObject {
         self.accountMode = (defaults.string(forKey: Key.accountMode).flatMap(AccountBarMode.init(rawValue:))) ?? d.accountMode
         self.pinnedEmail = defaults.string(forKey: Key.pinnedEmail)
         self.refreshInterval = RefreshInterval(rawValue: defaults.object(forKey: Key.refreshInterval) as? Int ?? RefreshInterval.twoMinutes.rawValue) ?? .twoMinutes
+
+        // Clamp persisted thresholds to a sane range and ordering, so a corrupt or
+        // legacy value can't leave the slider (or the colours) in an invalid state:
+        // warning ∈ [1, 98], critical ∈ [warning + 1, 99].
+        let rawW = defaults.object(forKey: Key.warningThreshold) as? Double ?? d.warningThreshold
+        let rawC = defaults.object(forKey: Key.criticalThreshold) as? Double ?? d.criticalThreshold
+        let warn = min(max(rawW, 1), 98)
+        self.warningThreshold = warn
+        self.criticalThreshold = min(max(rawC, warn + 1), 99)
+    }
+
+    /// Whether the colour thresholds are still at the out-of-the-box 85 / 95.
+    var thresholdsAreDefault: Bool {
+        warningThreshold == DisplaySettings.default.warningThreshold
+            && criticalThreshold == DisplaySettings.default.criticalThreshold
+    }
+
+    /// Restore the colour thresholds to the defaults (85 warning / 95 critical).
+    func resetThresholds() {
+        warningThreshold = DisplaySettings.default.warningThreshold
+        criticalThreshold = DisplaySettings.default.criticalThreshold
     }
 
     /// The Core value type the formatter consumes.
@@ -87,7 +115,9 @@ final class SettingsStore: ObservableObject {
             showPercentSign: showPercentSign,
             showMetricLabel: showMetricLabel,
             accountMode: accountMode,
-            pinnedEmail: pinnedEmail
+            pinnedEmail: pinnedEmail,
+            warningThreshold: warningThreshold,
+            criticalThreshold: criticalThreshold
         )
     }
 }

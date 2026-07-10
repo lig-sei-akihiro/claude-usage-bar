@@ -68,6 +68,11 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
     public var accountMode: AccountBarMode
     /// Email to show when `accountMode == .pinned`.
     public var pinnedEmail: String?
+    /// Used-percent at/above which the text turns orange (warning). 0...100.
+    public var warningThreshold: Double
+    /// Used-percent at/above which the text turns red (critical). Kept ≥ `warningThreshold`
+    /// by the settings UI, but the formatter tolerates any order (critical wins the tie).
+    public var criticalThreshold: Double
 
     public init(
         showBarText: Bool = true,
@@ -77,7 +82,9 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
         showPercentSign: Bool = true,
         showMetricLabel: Bool = true,
         accountMode: AccountBarMode = .active,
-        pinnedEmail: String? = nil
+        pinnedEmail: String? = nil,
+        warningThreshold: Double = 85,
+        criticalThreshold: Double = 95
     ) {
         self.showBarText = showBarText
         self.barMetric = barMetric
@@ -87,6 +94,8 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
         self.showMetricLabel = showMetricLabel
         self.accountMode = accountMode
         self.pinnedEmail = pinnedEmail
+        self.warningThreshold = warningThreshold
+        self.criticalThreshold = criticalThreshold
     }
 
     public static let `default` = DisplaySettings()
