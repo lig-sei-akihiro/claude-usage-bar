@@ -108,7 +108,7 @@ private struct AccountCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.caption)
-                .foregroundStyle(.red)
+                .foregroundStyle(SeverityColor.color(.error))
             } else {
                 ForEach(windows, id: \.kind) { window in
                     WindowRow(window: window, basis: basis, warningAt: warningAt, criticalAt: criticalAt)
@@ -152,7 +152,7 @@ private struct WindowRow: View {
     let criticalAt: Double
 
     var body: some View {
-        let color = Self.color(for: BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt))
+        let color = SeverityColor.color(BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt))
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(window.label)
@@ -183,14 +183,6 @@ private struct WindowRow: View {
         let jst = DateFormatting.jstResetString(window.resetsAt)
         let countdown = DateFormatting.countdownString(to: window.resetsAt)
         return countdown.isEmpty ? "resets \(jst)" : "resets \(jst) · \(countdown)"
-    }
-
-    static func color(for severity: BarSeverity) -> Color {
-        switch severity {
-        case .critical, .error: return .red
-        case .warning, .stale: return .orange
-        case .normal: return .green
-        }
     }
 }
 

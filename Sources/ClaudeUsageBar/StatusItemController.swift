@@ -172,12 +172,17 @@ final class StatusItemController {
         let settings = model.settings.displaySettings
         let title = BarTitleFormatter.make(from: model.snapshot, settings: settings)
 
+        // The menu bar's light/dark state follows the wallpaper, not the app's
+        // appearance, so resolve the severity palette against the status button's own
+        // appearance — otherwise the adaptive colours would pick the wrong variant.
+        let appearance = button.effectiveAppearance
+
         // Clawd (the mascot) + a mini usage gauge always lead the status item, echoing
         // the app icon. Coloured by the (worst) severity from the shared palette; the
         // gauge fills to live usage.
         let glyph = ClawdGlyph.image(
             fraction: BarTitleFormatter.representativeFraction(from: model.snapshot, settings: settings),
-            color: SeverityColor.ns(title.severity))
+            color: SeverityColor.ns(title.severity).resolved(for: appearance))
         button.contentTintColor = nil
 
         if settings.showBarText && !title.text.isEmpty {
@@ -188,14 +193,15 @@ final class StatusItemController {
                 // Each line's percentage is coloured by ITS OWN severity.
                 let lines = BarTitleFormatter.allLines(from: model.snapshot, settings: settings)
                 button.attributedTitle = NSAttributedString(string: "")
-                button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: glyph)
+                button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: glyph, appearance: appearance)
                 button.imagePosition = .imageOnly
             } else {
                 button.image = glyph
                 button.imagePosition = .imageLeading
                 button.attributedTitle = Self.barLine(
                     title.text, severity: title.severity,
-                    font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular))
+                    font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular),
+                    appearance: appearance)
             }
         } else {
             // Icon-only mode: Clawd + gauge is the whole status item.
@@ -205,16 +211,25 @@ final class StatusItemController {
         }
     }
 
-    /// An attributed status-bar line: the base text is white (adaptive `labelColor`);
-    /// only the percentage token takes the severity colour (green → orange → red).
-    /// The account/metric label and the reset time stay white.
+    /// An attributed status-bar line: the base text is the primary label colour; only
+    /// the percentage token takes the severity colour (green → amber → red). The
+    /// account/metric label and the reset time stay in the label colour.
+    ///
+    /// Both colours are resolved against `appearance` — the *status bar's* own
+    /// appearance, which the caller passes from the status button. The menu bar's
+    /// light/dark state is set by the wallpaper and can differ from the system theme,
+    /// so left to resolve at draw time `labelColor` would follow the theme and could
+    /// end up dark-on-dark (or light-on-light) against the actual menu-bar background.
     static func barLine(_ text: String, severity: BarSeverity, font: NSFont,
-                        paragraph: NSParagraphStyle? = nil) -> NSAttributedString {
-        var base: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.labelColor, .font: font]
+                        paragraph: NSParagraphStyle? = nil,
+                        appearance: NSAppearance? = nil) -> NSAttributedString {
+        let baseColor = NSColor.labelColor.resolved(for: appearance)
+        var base: [NSAttributedString.Key: Any] = [.foregroundColor: baseColor, .font: font]
         if let paragraph { base[.paragraphStyle] = paragraph }
         let attr = NSMutableAttributedString(string: text, attributes: base)
         if let range = percentRange(in: text) {
-            attr.addAttribute(.foregroundColor, value: SeverityColor.ns(severity), range: range)
+            let color = SeverityColor.ns(severity).resolved(for: appearance)
+            attr.addAttribute(.foregroundColor, value: color, range: range)
         }
         return attr
     }
@@ -235,7 +250,8 @@ final class StatusItemController {
     /// menu bar height, vertically centered. Each line's percentage keeps its own
     /// severity colour; the layout is a single multi-line draw so spacing is stable.
     private static func stackedTitleImage(lines: [StackedLine],
-                                          leadingGlyph: NSImage? = nil) -> NSImage {
+                                          leadingGlyph: NSImage? = nil,
+                                          appearance: NSAppearance? = nil) -> NSImage {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .right
         paragraph.lineSpacing = 0
@@ -245,7 +261,7 @@ final class StatusItemController {
         let attr = NSMutableAttributedString()
         for (i, line) in lines.enumerated() {
             if i > 0 { attr.append(NSAttributedString(string: "\n")) }
-            attr.append(barLine(line.text, severity: line.severity, font: font, paragraph: paragraph))
+            attr.append(barLine(line.text, severity: line.severity, font: font, paragraph: paragraph, appearance: appearance))
         }
         let textSize = attr.size()
         let height = NSStatusBar.system.thickness
