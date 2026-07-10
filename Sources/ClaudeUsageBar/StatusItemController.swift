@@ -236,7 +236,9 @@ final class StatusItemController {
         let width = max(1, ceil(textSize.width) + 2)
         let image = NSImage(size: NSSize(width: width, height: height))
         image.lockFocus()
-        let y = ((height - textSize.height) / 2).rounded()
+        // Nudge 1pt down: each line box carries empty descender space at its bottom, so a
+        // geometric center leaves the glyph mass looking slightly high. Verified visually.
+        let y = ((height - textSize.height) / 2).rounded() - 1
         attr.draw(in: NSRect(x: 0, y: y, width: width, height: ceil(textSize.height)))
         image.unlockFocus()
         image.isTemplate = false
