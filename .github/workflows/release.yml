@@ -1,0 +1,71 @@
+name: Release
+
+# Cut a release by pushing a tag, e.g. `git tag v0.2.0 && git push origin v0.2.0`.
+# The tag name (minus the leading "v") becomes the version everywhere.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the GitHub Release + upload the asset on this repo
+
+jobs:
+  release:
+    runs-on: macos-14
+    env:
+      # Fine-grained PAT with contents:write on lig-sei-akihiro/homebrew-tap.
+      # If unset, the tap-update step is skipped and a warning is emitted.
+      TAP_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Derive version from tag
+        id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & package (release, ad-hoc signed)
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: ./Scripts/package_app.sh release
+
+      - name: Compute sha256
+        id: sha
+        run: echo "sha=$(shasum -a 256 "dist/ClaudeUsageBar-${{ steps.v.outputs.version }}.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/ClaudeUsageBar-${{ steps.v.outputs.version }}.zip" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      # Bump version + sha256 in the tap's static-URL cask. The cask's `url` uses
+      # `#{version}` interpolation, so only these two lines change per release.
+      - name: Update Homebrew tap cask
+        if: ${{ env.TAP_TOKEN != '' }}
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/lig-sei-akihiro/homebrew-tap.git" tap
+          cd tap
+          CASK=Casks/claude-usage-bar.rb
+          /usr/bin/sed -i '' -E "s/version \"[^\"]+\"/version \"${VERSION}\"/" "$CASK"
+          /usr/bin/sed -i '' -E "s/sha256 \"[^\"]+\"/sha256 \"${SHA}\"/" "$CASK"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$CASK"
+          git commit -m "claude-usage-bar ${VERSION}"
+          git push
+
+      - name: Warn if tap not updated
+        if: ${{ env.TAP_TOKEN == '' }}
+        run: |
+          echo "::warning::TAP_PUSH_TOKEN not set — skipped tap cask update. Update lig-sei-akihiro/homebrew-tap manually: version=${{ steps.v.outputs.version }}, sha256=${{ steps.sha.outputs.sha }}"

@@ -11,7 +11,9 @@ cd "$(dirname "$0")/.."
 APP_NAME="ClaudeUsageBar"
 CONFIG="${1:-release}"
 BUNDLE_ID="com.lig-sei-akihiro.claude-usage-bar"
-VERSION="0.1.0"
+# Version comes from the environment (the release workflow passes it from the git
+# tag, e.g. v0.2.0 → 0.2.0). The fallback is only for local packaging.
+VERSION="${VERSION:-0.1.0}"
 
 echo "▸ Building ($CONFIG)…"
 swift build -c "$CONFIG" --product "$APP_NAME"
