@@ -50,7 +50,8 @@ public struct UsageService: Sendable {
             }
             var accounts: [AccountUsage] = []
             for await account in group { accounts.append(account) }
-            accounts.sort { $0.email < $1.email }
+            // Sort by config-folder name (e.g. "main" before "sub"), not email.
+            accounts.sort { $0.folders.joined(separator: "/") < $1.folders.joined(separator: "/") }
             return UsageSnapshot(accounts: accounts, generatedAt: now)
         }
     }

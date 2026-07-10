@@ -97,4 +97,25 @@ struct UsageParsingTests {
         #expect(main.email == "me@example.com")
         #expect(!accounts.contains { $0.folderName == "empty" })
     }
+
+    @Test func retainingWindowsCarriesForwardOnTransientError() {
+        let good = RateWindow(kind: .session, label: "Session (5h)", usedPercent: 40)
+        let previous = UsageSnapshot(
+            accounts: [AccountUsage(email: "a@x", folders: ["main"], windows: [good])],
+            generatedAt: Date(timeIntervalSince1970: 100))
+
+        // A previously-good account that now errors keeps its last value (error cleared).
+        let fresh = UsageSnapshot(
+            accounts: [AccountUsage(email: "a@x", folders: ["main"], error: "HTTP 429")],
+            generatedAt: Date(timeIntervalSince1970: 200))
+        let merged = fresh.retainingWindows(from: previous)
+        #expect(merged.accounts.first?.session?.usedPercent == 40)
+        #expect(merged.accounts.first?.error == nil)
+
+        // An account that never had data keeps its error.
+        let brandNew = UsageSnapshot(
+            accounts: [AccountUsage(email: "new@x", folders: ["new"], error: "HTTP 429")],
+            generatedAt: Date(timeIntervalSince1970: 200))
+        #expect(brandNew.retainingWindows(from: previous).accounts.first?.hasError == true)
+    }
 }

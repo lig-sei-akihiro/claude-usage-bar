@@ -110,6 +110,22 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
     }
 
     public static let empty = UsageSnapshot(accounts: [], generatedAt: .distantPast)
+
+    /// Carry forward last-known windows for accounts that just errored with no fresh
+    /// data (e.g. a transient HTTP 429), so a blip doesn't blank the bar to "?". An
+    /// account that never had data keeps its error.
+    public func retainingWindows(from previous: UsageSnapshot) -> UsageSnapshot {
+        let merged = accounts.map { acc -> AccountUsage in
+            guard acc.hasError, acc.windows.isEmpty,
+                  let prev = previous.accounts.first(where: { $0.email == acc.email }),
+                  !prev.windows.isEmpty
+            else { return acc }
+            return AccountUsage(
+                email: acc.email, folders: acc.folders, windows: prev.windows,
+                error: nil, fetchedAt: prev.fetchedAt)
+        }
+        return UsageSnapshot(accounts: merged, generatedAt: generatedAt)
+    }
 }
 
 // MARK: - Menu bar title (contract)

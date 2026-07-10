@@ -61,14 +61,14 @@ public enum BarTitleFormatter {
 
     // MARK: - Private
 
-    /// `.all` mode: a multi-line title, one labelled account per line, capped at the
-    /// 2 most-constrained accounts (by `mostConstrainedWindow.usedPercent`, worst first).
-    /// Lines join with "\n" for the renderer to stack; severity is the worst of the shown.
+    /// `.all` mode: a multi-line title, one labelled account per line, ordered by
+    /// account label (e.g. "main" before "sub"), capped at 2 lines. Lines join with
+    /// "\n" for the renderer to stack; severity is the worst of the shown.
     private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date) -> BarTitle {
         guard !snapshot.accounts.isEmpty else { return BarTitle(text: "", severity: .stale) }
 
         let shown = snapshot.accounts
-            .sorted { ($0.mostConstrainedWindow?.usedPercent ?? 0) > ($1.mostConstrainedWindow?.usedPercent ?? 0) }
+            .sorted { accountLabel($0) < accountLabel($1) }
             .prefix(2)
 
         var worst: BarSeverity = .normal

@@ -136,8 +136,9 @@ final class StatusItemController {
         isRefreshing = true
         model.isRefreshing = true
         Task { @MainActor in
-            let snap = await UsageService().snapshot()
-            model.snapshot = snap
+            let fresh = await UsageService().snapshot()
+            // Keep the last-known value for any account that just transiently errored.
+            model.snapshot = fresh.retainingWindows(from: model.snapshot)
             model.isRefreshing = false
             isRefreshing = false
             updateBar()
@@ -170,29 +171,25 @@ final class StatusItemController {
         let color = tintColor(for: title.severity)
 
         if settings.showBarText && !title.text.isEmpty {
+            button.contentTintColor = nil
             if title.text.contains("\n") {
-                // Stacked 2-line title: shrink the font and tighten line metrics so both
-                // lines fit inside the ~22pt menu bar. Right-aligned to match the bar edge.
-                let paragraph = NSMutableParagraphStyle()
-                paragraph.alignment = .right
-                paragraph.lineSpacing = 0
-                paragraph.maximumLineHeight = 10
-                paragraph.minimumLineHeight = 10
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .foregroundColor: color,
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 9.5, weight: .regular),
-                    .paragraphStyle: paragraph
-                ]
-                button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
+                // Stacked lines: draw into an image the exact height of the menu bar,
+                // vertically centered. A raw multi-line attributedTitle left dead space
+                // at the bottom; drawing our own image removes it and lets the font grow.
+                button.attributedTitle = NSAttributedString(string: "")
+                button.image = Self.stackedTitleImage(title.text, color: color)
+                button.imagePosition = .imageOnly
             } else {
+                button.image = nil
+                button.imagePosition = .noImage
                 let attributes: [NSAttributedString.Key: Any] = [
                     .foregroundColor: color,
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
                 ]
                 button.attributedTitle = NSAttributedString(string: title.text, attributes: attributes)
             }
-            button.image = nil
         } else {
+            button.imagePosition = .imageOnly
             button.attributedTitle = NSAttributedString(string: "")
             let image = NSImage(
                 systemSymbolName: "gauge.with.dots.needle.33percent",
@@ -219,4 +216,31 @@ final class StatusItemController {
         case .stale: return .tertiaryLabelColor
         }
     }
+
+    /// Draw stacked lines into an image sized to the menu bar height, vertically
+    /// centered. Non-template so the severity color is preserved.
+    private static func stackedTitleImage(_ text: String, color: NSColor) -> NSImage {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .right
+        paragraph.lineSpacing = 0
+        paragraph.maximumLineHeight = 10.5
+        paragraph.minimumLineHeight = 10.5
+        let attrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: color,
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
+            .paragraphStyle: paragraph,
+        ]
+        let attr = NSAttributedString(string: text, attributes: attrs)
+        let textSize = attr.size()
+        let height = NSStatusBar.system.thickness
+        let width = max(1, ceil(textSize.width) + 2)
+        let image = NSImage(size: NSSize(width: width, height: height))
+        image.lockFocus()
+        let y = ((height - textSize.height) / 2).rounded()
+        attr.draw(in: NSRect(x: 0, y: y, width: width, height: ceil(textSize.height)))
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
+    }
+
 }

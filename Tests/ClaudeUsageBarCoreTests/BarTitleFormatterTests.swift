@@ -190,33 +190,35 @@ struct BarTitleFormatterTests {
 
     // MARK: - .all
 
-    @Test func allModeStacksLabelledLinesWorstFirstAndTakesWorstSeverity() {
-        let a = account("a@x", [win(.session, used: 40)], folders: ["main"])
-        let b = account("b@x", [win(.session, used: 96)], folders: ["sub"])
+    @Test func allModeStacksLabelledLinesByNameAndTakesWorstSeverity() {
+        // Input order is deliberately reversed to prove the formatter sorts by label.
+        let sub = account("b@x", [win(.session, used: 96)], folders: ["sub"])
+        let main = account("a@x", [win(.session, used: 40)], folders: ["main"])
         let out = BarTitleFormatter.make(
-            from: snapshot([a, b]),
+            from: snapshot([sub, main]),
             settings: DisplaySettings(percentBasis: .used, accountMode: .all))
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         #expect(lines.count == 2)
-        // Most-constrained account leads.
-        #expect(lines[0] == "sub 5h 96%")
-        #expect(lines[1] == "main 5h 40%")
+        // Ordered by folder name: "main" before "sub".
+        #expect(lines[0] == "main 5h 40%")
+        #expect(lines[1] == "sub 5h 96%")
         #expect(out.severity == .critical)
     }
 
-    @Test func allModeCapsAtTwoMostConstrainedLines() {
+    @Test func allModeCapsAtTwoLinesByName() {
         let a = account("a@x", [win(.session, used: 10)], folders: ["a"])
         let b = account("b@x", [win(.session, used: 90)], folders: ["b"])
         let c = account("c@x", [win(.session, used: 50)], folders: ["c"])
         let out = BarTitleFormatter.make(
-            from: snapshot([a, b, c]),
+            from: snapshot([c, b, a]),
             settings: DisplaySettings(percentBasis: .used, accountMode: .all))
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         #expect(lines.count == 2)
-        #expect(lines[0] == "b 5h 90%")
-        #expect(lines[1] == "c 5h 50%")
+        // First two by name.
+        #expect(lines[0] == "a 5h 10%")
+        #expect(lines[1] == "b 5h 90%")
     }
 
     @Test func allModeSingleAccountIsOneLabelledLine() {
@@ -247,8 +249,9 @@ struct BarTitleFormatterTests {
             now: now)
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        #expect(lines[0] == "sub 5h 96% · 1h0m")
-        #expect(lines[1] == "main 5h 40% · 1h0m")
+        // Ordered by folder name: "main" before "sub".
+        #expect(lines[0] == "main 5h 40% · 1h0m")
+        #expect(lines[1] == "sub 5h 96% · 1h0m")
     }
 
     @Test func allModeHonoursShowBarTextFalse() {
