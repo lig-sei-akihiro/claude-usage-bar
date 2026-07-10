@@ -22,6 +22,26 @@ macOS 14+ / Swift 6。外部パッケージ依存なし（AppKit / SwiftUI / Cry
 
 > ℹ️ `/usage` API は subscription プランでは利用率（%）のみを返すため、数値は % 表示です。
 
+## インストール
+
+Homebrew Cask で入れられます。tap は自動で追加されるので一行で済みます。
+
+```bash
+brew install lig-sei-akihiro/tap/claude-usage-bar
+```
+
+tap を明示するなら次の二行でも同じです。
+
+```bash
+brew tap lig-sei-akihiro/tap
+brew install --cask claude-usage-bar
+```
+
+更新: `brew upgrade --cask claude-usage-bar`
+アンインストール: `brew uninstall --cask claude-usage-bar`
+
+自前運用の public tap（`lig-sei-akihiro/tap`）から配布しており、本体は ad-hoc 署名です。
+
 ## クレジット / License
 
 データ取得: 自作 `claude-usage-all` ／ 構成の着想: [CodexBar](https://github.com/steipete/CodexBar)（MIT）。本体は MIT License。

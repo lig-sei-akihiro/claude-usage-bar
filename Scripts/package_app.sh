@@ -73,4 +73,4 @@ echo
 echo "Install (local): cp -R \"$APP\" /Applications/    then right-click → Open (first launch)"
 echo "Run once:        open \"$APP\""
 echo "Release (cask):  gh release create v$VERSION \"$ZIP\" --repo lig-sei-akihiro/claude-usage-bar"
-echo "                 then set version=$VERSION / sha256=$SHA in the tap's Casks/claude-usage-bar.rb"
+echo "                 then bump version=$VERSION / sha256=$SHA in the TAP repo (lig-sei-akihiro/homebrew-tap) Casks/claude-usage-bar.rb — static public URL, no auth machinery"
