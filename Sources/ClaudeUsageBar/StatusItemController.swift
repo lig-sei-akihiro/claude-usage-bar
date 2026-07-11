@@ -3,9 +3,9 @@ import Combine
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// Owns the `NSStatusItem`. Renders the colour-coded bar title from `BarTitleFormatter`,
-/// runs the refresh timer keyed off `SettingsStore.refreshInterval`, drives
-/// `AppModel.snapshot`, and shows the popover / settings window.
+/// `NSStatusItem` を所有する。`BarTitleFormatter` が生成する色分け済みのバータイトルを描画し、
+/// `SettingsStore.refreshInterval` を基準にした更新タイマーを回し、`AppModel.snapshot` を
+/// 駆動して、ポップオーバーと設定ウィンドウを表示する。
 @MainActor
 final class StatusItemController {
     private let model: AppModel
@@ -22,10 +22,10 @@ final class StatusItemController {
 
         self.popover = NSPopover()
         popover.behavior = .transient
-        // Canonical fix for the NSPopover "contentSize trap": NSPopover defaults to
-        // 320x320 and silently clips taller SwiftUI content. sizingOptions =
-        // .preferredContentSize makes the hosting controller report the SwiftUI ideal
-        // size, so the popover auto-sizes to fit (no clip, no scroll needed).
+        // NSPopover の「contentSize の罠」に対する定番の対処。NSPopover は既定で 320x320 に
+        // なり、それより背の高い SwiftUI コンテンツを黙ってクリップしてしまう。sizingOptions =
+        // .preferredContentSize を指定すると hosting controller が SwiftUI の理想サイズを報告し、
+        // ポップオーバーが内容に合わせて自動リサイズされる(クリップもスクロールも不要になる)。
         let hosting = NSHostingController(rootView: PopoverView().environmentObject(model))
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
@@ -40,7 +40,7 @@ final class StatusItemController {
         model.openSettingsAction = { [weak self] in self?.openSettings() }
         model.quitAction = { NSApp.terminate(nil) }
 
-        // Re-render the title and reschedule the timer when display/refresh options change.
+        // 表示/更新のオプションが変わったら、タイトルを再描画してタイマーを組み直す。
         settingsCancellable = model.settings.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] in
@@ -52,10 +52,10 @@ final class StatusItemController {
         scheduleTimer()
     }
 
-    // MARK: Popover
+    // MARK: ポップオーバー
 
-    /// Left-click toggles the popover (primary UI); right-click shows a plain
-    /// menu so Settings/Quit are reachable even if the popover is unavailable.
+    /// 左クリックでポップオーバーを開閉する(主たる UI)。右クリックでは素のメニューを表示し、
+    /// ポップオーバーが使えないときでも Settings/Quit に到達できるようにする。
     @objc private func handleClick(_ sender: Any?) {
         if NSApp.currentEvent?.type == .rightMouseUp {
             showContextMenu()
@@ -90,15 +90,15 @@ final class StatusItemController {
         }
     }
 
-    // MARK: Settings window
+    // MARK: 設定ウィンドウ
 
     private func openSettings() {
         popover.performClose(nil)
 
-        // Fixed-size window. `sizingOptions = []` stops the hosting view from resizing
-        // the window to the SwiftUI content — which previously either grew it off the
-        // top of the screen or collapsed it to an empty pane. The content fills the
-        // fixed frame and the grouped Form scrolls if it is taller.
+        // 固定サイズのウィンドウ。`sizingOptions = []` は hosting view が SwiftUI コンテンツに
+        // 合わせてウィンドウをリサイズするのを止める。以前はこれにより、ウィンドウが画面上端の外
+        // まで伸びたり、空のペインに縮んだりしていた。コンテンツは固定フレームを埋め、グループ化
+        // された Form はそれより高ければスクロールする。
         let hostingView = NSHostingView(
             rootView: SettingsView(settings: model.settings, accounts: model.snapshot.accounts)
         )
@@ -114,14 +114,14 @@ final class StatusItemController {
                 backing: .buffered,
                 defer: false
             )
-            // No visible title — the form has its own icon + name header, so the window
-            // title text is redundant. Keep the standard title bar (traffic lights / drag),
-            // just hide the text. (`title` is still set for the Window menu / accessibility.)
+            // タイトル文字は表示しない。フォーム自体にアイコン + 名前のヘッダがあるため、ウィンドウ
+            // のタイトル文字は冗長。標準のタイトルバー(信号機ボタン / ドラッグ)は残し、文字だけ
+            // 隠す。(`title` は Window メニュー / アクセシビリティ用に設定したままにする。)
             window.title = "Settings"
             window.titleVisibility = .hidden
             window.isReleasedWhenClosed = false
-            // Follow the user across Spaces: reopening brings the window to the active
-            // desktop instead of switching back to the Space it first appeared on.
+            // Spaces をまたいでユーザーに追従する。再表示時に、最初に現れた Space へ戻るのではなく、
+            // 現在アクティブなデスクトップにウィンドウを持ってくる。
             window.collectionBehavior.insert(.moveToActiveSpace)
             window.center()
             settingsWindow = window
@@ -132,7 +132,7 @@ final class StatusItemController {
         window.makeKeyAndOrderFront(nil)
     }
 
-    // MARK: Refresh
+    // MARK: 更新
 
     private func refresh() {
         guard !isRefreshing else { return }
@@ -140,7 +140,7 @@ final class StatusItemController {
         model.isRefreshing = true
         Task { @MainActor in
             let fresh = await UsageService().snapshot()
-            // Keep the last-known value for any account that just transiently errored.
+            // 一時的にエラーになっただけのアカウントについては、直近の既知の値を保持する。
             model.snapshot = fresh.retainingWindows(from: model.snapshot)
             model.isRefreshing = false
             isRefreshing = false
@@ -148,7 +148,7 @@ final class StatusItemController {
         }
     }
 
-    // MARK: Timer
+    // MARK: タイマー
 
     private func scheduleTimer() {
         refreshTimer?.invalidate()
@@ -164,7 +164,7 @@ final class StatusItemController {
         refreshTimer = timer
     }
 
-    // MARK: Bar title
+    // MARK: バーのタイトル
 
     private func updateBar() {
         guard let button = statusItem.button else { return }
@@ -172,14 +172,14 @@ final class StatusItemController {
         let settings = model.settings.displaySettings
         let title = BarTitleFormatter.make(from: model.snapshot, settings: settings)
 
-        // The menu bar's light/dark state follows the wallpaper, not the app's
-        // appearance, so resolve the severity palette against the status button's own
-        // appearance — otherwise the adaptive colours would pick the wrong variant.
+        // メニューバーのライト/ダーク状態はアプリの appearance ではなく壁紙に従う。そこで
+        // severity パレットは status button 自身の appearance に対して解決する。さもないと
+        // 適応的な色が誤ったバリアントを選んでしまう。
         let appearance = button.effectiveAppearance
 
-        // Clawd (the mascot) + a mini usage gauge always lead the status item, echoing
-        // the app icon. Coloured by the (worst) severity from the shared palette; the
-        // gauge fills to live usage.
+        // Clawd(マスコット)とミニ使用量ゲージが常にステータスアイテムの先頭に立ち、アプリ
+        // アイコンと呼応する。共有パレットの(最も深刻な)severity で着色し、ゲージはライブの
+        // 使用量まで満ちる。
         let glyph = ClawdGlyph.image(
             fraction: BarTitleFormatter.representativeFraction(from: model.snapshot, settings: settings),
             color: SeverityColor.ns(title.severity).resolved(for: appearance))
@@ -187,10 +187,10 @@ final class StatusItemController {
 
         if settings.showBarText && !title.text.isEmpty {
             if title.text.contains("\n") {
-                // Stacked lines: draw the glyph + both lines into one image sized to
-                // the menu bar height. A raw multi-line attributedTitle left dead space
-                // at the bottom; drawing our own image removes it and lets the font grow.
-                // Each line's percentage is coloured by ITS OWN severity.
+                // 積み重ね表示の行。グリフと両方の行を、メニューバーの高さに合わせた 1 枚の画像
+                // に描く。素の複数行 attributedTitle では下端に余白が残っていたが、自前で画像を
+                // 描くことでそれを取り除き、フォントを大きくできる。各行のパーセンテージはその行
+                // 自身の severity で着色する。
                 let lines = BarTitleFormatter.allLines(from: model.snapshot, settings: settings)
                 button.attributedTitle = NSAttributedString(string: "")
                 button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: glyph, appearance: appearance)
@@ -204,22 +204,21 @@ final class StatusItemController {
                     appearance: appearance)
             }
         } else {
-            // Icon-only mode: Clawd + gauge is the whole status item.
+            // アイコンのみモード。Clawd + ゲージがステータスアイテムのすべてになる。
             button.imagePosition = .imageOnly
             button.attributedTitle = NSAttributedString(string: "")
             button.image = glyph
         }
     }
 
-    /// An attributed status-bar line: the base text is the primary label colour; only
-    /// the percentage token takes the severity colour (green → amber → red). The
-    /// account/metric label and the reset time stay in the label colour.
+    /// 属性付きのステータスバー行。基となるテキストは主ラベルの色で描き、パーセンテージの
+    /// トークンだけが severity の色(緑 → 橙 → 赤)をとる。アカウント/メトリクスのラベルと
+    /// リセット時刻はラベル色のまま残す。
     ///
-    /// Both colours are resolved against `appearance` — the *status bar's* own
-    /// appearance, which the caller passes from the status button. The menu bar's
-    /// light/dark state is set by the wallpaper and can differ from the system theme,
-    /// so left to resolve at draw time `labelColor` would follow the theme and could
-    /// end up dark-on-dark (or light-on-light) against the actual menu-bar background.
+    /// どちらの色も `appearance` ―― 呼び出し側が status button から渡す *ステータスバー自身* の
+    /// appearance ―― に対して解決する。メニューバーのライト/ダーク状態は壁紙で決まり、システムの
+    /// テーマと食い違うことがある。そのため描画時に解決させると `labelColor` はテーマに従ってしまい、
+    /// 実際のメニューバー背景に対して暗い背景に暗い文字(または明るい背景に明るい文字)になりかねない。
     static func barLine(_ text: String, severity: BarSeverity, font: NSFont,
                         paragraph: NSParagraphStyle? = nil,
                         appearance: NSAppearance? = nil) -> NSAttributedString {
@@ -234,10 +233,10 @@ final class StatusItemController {
         return attr
     }
 
-    /// Range of the "NN%" (or "NN") percentage token: the trailing digit-run of the
-    /// line's *head* (everything before the " · " reset). The value is always the last
-    /// token of the head, so this never lands on digits inside a numeric account label
-    /// (e.g. the "2" in "v2 30%") in `.all` mode, nor on the reset-time digits.
+    /// 「NN%」(または「NN」)というパーセンテージトークンの範囲。行の *head*( " · " のリセット
+    /// より前の全体)の末尾に続く数字列を指す。値は常に head の最後のトークンなので、`.all` モード
+    /// で数字を含むアカウントラベル(例えば "v2 30%" の "2")の途中の数字に当たることも、リセット
+    /// 時刻の数字に当たることもない。
     private static func percentRange(in text: String) -> NSRange? {
         let ns = text as NSString
         let sep = ns.range(of: " · ")
@@ -246,9 +245,9 @@ final class StatusItemController {
         return re.firstMatch(in: head, range: NSRange(location: 0, length: (head as NSString).length))?.range
     }
 
-    /// Draw an optional leading glyph plus stacked lines into an image sized to the
-    /// menu bar height, vertically centered. Each line's percentage keeps its own
-    /// severity colour; the layout is a single multi-line draw so spacing is stable.
+    /// 任意の先頭グリフと積み重ねた複数行を、メニューバーの高さに合わせた画像に、縦方向は中央
+    /// 揃えで描画する。各行のパーセンテージはそれぞれの severity 色を保つ。レイアウトは 1 回の
+    /// 複数行描画なので、行間が安定する。
     private static func stackedTitleImage(lines: [StackedLine],
                                           leadingGlyph: NSImage? = nil,
                                           appearance: NSAppearance? = nil) -> NSImage {
@@ -275,8 +274,8 @@ final class StatusItemController {
             let gy = ((height - glyph.size.height) / 2).rounded()
             glyph.draw(at: NSPoint(x: 0, y: gy), from: .zero, operation: .sourceOver, fraction: 1)
         }
-        // Nudge 1pt down: each line box carries empty descender space at its bottom, so a
-        // geometric center leaves the glyph mass looking slightly high. Verified visually.
+        // 1pt 下にずらす。各行のボックスは下端に空のディセンダ領域を抱えているため、幾何学的な
+        // 中央に置くとグリフの塊がやや上に見える。目視で確認済み。
         let y = ((height - textSize.height) / 2).rounded() - 1
         attr.draw(in: NSRect(x: glyphW + gap, y: y, width: textW, height: ceil(textSize.height)))
         image.unlockFocus()

@@ -2,12 +2,12 @@ import Foundation
 import Testing
 @testable import ClaudeUsageBarCore
 
-/// Exercises the bar-title composition: remaining-vs-used, metric selection,
-/// warning/critical thresholds, the icon-only (showBarText == false) path,
-/// multi-account selection, `.pinned` fallback, and the empty snapshot.
+/// バータイトルの組み立てを検証する: 残量と使用量の切り替え、メトリック選択、
+/// warning/critical のしきい値、アイコンのみ (showBarText == false) の経路、
+/// 複数アカウントの選択、`.pinned` のフォールバック、空スナップショット。
 struct BarTitleFormatterTests {
 
-    // MARK: - Helpers
+    // MARK: - ヘルパー
 
     private func win(
         _ kind: RateWindowKind,
@@ -36,7 +36,7 @@ struct BarTitleFormatterTests {
         UsageSnapshot(accounts: accounts, generatedAt: Date())
     }
 
-    // MARK: - Remaining vs used
+    // MARK: - 残量と使用量
 
     @Test func remainingVsUsed() {
         let snap = snapshot([account("a@x", [win(.session, used: 40)])])
@@ -61,7 +61,7 @@ struct BarTitleFormatterTests {
         #expect(bare.text == "40")
     }
 
-    // MARK: - Metric selection
+    // MARK: - メトリック選択
 
     @Test func metricSelectionPicksTheRightWindow() {
         let acct = account("a@x", [
@@ -91,7 +91,7 @@ struct BarTitleFormatterTests {
         #expect(out.text == "! 40%")
     }
 
-    // MARK: - Thresholds
+    // MARK: - しきい値
 
     @Test func warningThreshold() {
         let at85 = BarTitleFormatter.make(
@@ -118,7 +118,7 @@ struct BarTitleFormatterTests {
             settings: DisplaySettings(percentBasis: .used))
         #expect(at95.severity == .critical)
 
-        // Basis must not change the critical decision (remaining ≤ 5 ⟺ used ≥ 95).
+        // 基準 (basis) は critical 判定を変えてはならない (remaining ≤ 5 ⟺ used ≥ 95)。
         let remaining = BarTitleFormatter.make(
             from: snapshot([account("a@x", [win(.session, used: 97)])]),
             settings: DisplaySettings(percentBasis: .remaining))
@@ -137,7 +137,7 @@ struct BarTitleFormatterTests {
             from: snapshot([account("a@x", [win(.session, used: 70)])]), settings: settings)
         #expect(warning.severity == .warning)
 
-        // 88% is warning under a 90 critical threshold, but critical under the default 95.
+        // 88% は critical しきい値が 90 なら warning だが、デフォルトの 95 なら critical になる。
         let stillWarning = BarTitleFormatter.make(
             from: snapshot([account("a@x", [win(.session, used: 88)])]), settings: settings)
         #expect(stillWarning.severity == .warning)
@@ -148,7 +148,7 @@ struct BarTitleFormatterTests {
     }
 
     @Test func windowSeverityIsBasisIndependent() {
-        // The shared helper the popover also calls: pure used-percent, honouring the server flag.
+        // ポップオーバーからも呼ばれる共通ヘルパー: 純粋な使用率で、サーバーのフラグを尊重する。
         #expect(BarTitleFormatter.windowSeverity(win(.session, used: 50), warningAt: 60, criticalAt: 80) == .normal)
         #expect(BarTitleFormatter.windowSeverity(win(.session, used: 65), warningAt: 60, criticalAt: 80) == .warning)
         #expect(BarTitleFormatter.windowSeverity(win(.session, used: 85), warningAt: 60, criticalAt: 80) == .critical)
@@ -162,7 +162,7 @@ struct BarTitleFormatterTests {
         #expect(out.severity == .error)
     }
 
-    // MARK: - Reset countdown
+    // MARK: - リセットのカウントダウン
 
     @Test func resetCountdownSuffix() {
         let now = Date(timeIntervalSince1970: 1_000_000)
@@ -175,8 +175,8 @@ struct BarTitleFormatterTests {
     }
 
     @Test func resetTimeSuffixUsesJSTClock() {
-        // 1_000_000s past the 1970 epoch is 1970-01-12 13:46:40 UTC; the +30s round
-        // lands on 13:47, and +9h JST gives 22:47.
+        // 1970 エポックから 1_000_000 秒後は 1970-01-12 13:46:40 UTC。+30 秒の丸めで
+        // 13:47 になり、JST の +9h で 22:47 になる。
         let resets = Date(timeIntervalSince1970: 1_000_000)
         let out = BarTitleFormatter.make(
             from: snapshot([account("a@x", [win(.session, used: 40, resets: resets)])]),
@@ -184,7 +184,7 @@ struct BarTitleFormatterTests {
         #expect(out.text == "5h 40% · 22:47")
     }
 
-    // MARK: - showBarText == false
+    // MARK: - showBarText == false のとき
 
     @Test func showBarTextFalseYieldsEmptyTextButRealSeverity() {
         let out = BarTitleFormatter.make(
@@ -194,7 +194,7 @@ struct BarTitleFormatterTests {
         #expect(out.severity == .critical)
     }
 
-    // MARK: - Multi-account .active selection
+    // MARK: - 複数アカウントの .active 選択
 
     @Test func activeSelectsMostConstrainedAccount() {
         let a = account("low@x", [win(.session, used: 30)])
@@ -217,10 +217,10 @@ struct BarTitleFormatterTests {
         #expect(selected?.email == "ok@x")
     }
 
-    // MARK: - .all
+    // MARK: - .all モード
 
     @Test func allModeStacksLabelledLinesByNameAndTakesWorstSeverity() {
-        // Input order is deliberately reversed to prove the formatter sorts by label.
+        // formatter がラベル順に並べ替えることを示すため、入力順をわざと逆にしている。
         let sub = account("b@x", [win(.session, used: 96)], folders: ["sub"])
         let main = account("a@x", [win(.session, used: 40)], folders: ["main"])
         let out = BarTitleFormatter.make(
@@ -229,7 +229,7 @@ struct BarTitleFormatterTests {
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         #expect(lines.count == 2)
-        // Ordered by folder name: "main" before "sub".
+        // フォルダ名順に並ぶ: "sub" より "main" が先。
         #expect(lines[0] == "main 5h 40%")
         #expect(lines[1] == "sub 5h 96%")
         #expect(out.severity == .critical)
@@ -245,7 +245,7 @@ struct BarTitleFormatterTests {
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         #expect(lines.count == 2)
-        // First two by name.
+        // 名前順で先頭2つ。
         #expect(lines[0] == "a 5h 10%")
         #expect(lines[1] == "b 5h 90%")
     }
@@ -260,7 +260,7 @@ struct BarTitleFormatterTests {
     }
 
     @Test func allModeDefaultOnlyAccountHasNoLabel() {
-        // A lone default account (~/.claude) shows just the value — "default" is noise.
+        // 単独の default アカウント (~/.claude) は値だけ表示する — "default" はノイズ。
         let a = account("solo@x", [win(.session, used: 30)], folders: ["default"])
         let out = BarTitleFormatter.make(
             from: snapshot([a]),
@@ -269,7 +269,7 @@ struct BarTitleFormatterTests {
     }
 
     @Test func allModeDropsDefaultFromCombinedLabel() {
-        // When "default" shares an email with a real folder, only the real one shows.
+        // "default" が実在フォルダと email を共有する場合、実在フォルダだけ表示する。
         let a = account("me@x", [win(.session, used: 40)], folders: ["default", "main"])
         let out = BarTitleFormatter.make(
             from: snapshot([a]),
@@ -296,7 +296,7 @@ struct BarTitleFormatterTests {
             now: now)
 
         let lines = out.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        // Ordered by folder name: "main" before "sub".
+        // フォルダ名順に並ぶ: "sub" より "main" が先。
         #expect(lines[0] == "main 5h 40% · 1h0m")
         #expect(lines[1] == "sub 5h 96% · 1h0m")
     }
@@ -311,7 +311,7 @@ struct BarTitleFormatterTests {
         #expect(out.severity == .critical)
     }
 
-    // MARK: - .pinned
+    // MARK: - .pinned モード
 
     @Test func pinnedSelectsMatchingEmail() {
         let a = account("pinme@x", [win(.session, used: 20)])
@@ -331,7 +331,7 @@ struct BarTitleFormatterTests {
         #expect(selected?.email == "b@x")
     }
 
-    // MARK: - Empty snapshot
+    // MARK: - 空スナップショット
 
     @Test func emptySnapshotIsStaleWithEmptyText() {
         let out = BarTitleFormatter.make(from: .empty, settings: .default)

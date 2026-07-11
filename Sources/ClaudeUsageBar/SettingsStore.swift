@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import ClaudeUsageBarCore
 
-/// How often the app refreshes usage. `manual` disables the timer.
+/// アプリが使用状況をリフレッシュする間隔。`manual` はタイマーを無効にする。
 enum RefreshInterval: Int, CaseIterable, Identifiable {
     case manual = 0
     case oneMinute = 60
@@ -23,8 +23,8 @@ enum RefreshInterval: Int, CaseIterable, Identifiable {
     }
 }
 
-/// UserDefaults-backed, observable settings. Maps persisted keys onto the Core
-/// `DisplaySettings` value type consumed by `BarTitleFormatter`.
+/// UserDefaults を裏に持つ observable な設定。永続化したキーを、`BarTitleFormatter` が
+/// 使う Core の `DisplaySettings` 値型へマッピングする。
 @MainActor
 final class SettingsStore: ObservableObject {
     private let defaults: UserDefaults
@@ -44,7 +44,7 @@ final class SettingsStore: ObservableObject {
         static let criticalThreshold = "criticalThreshold"
     }
 
-    // MARK: Bar display
+    // MARK: バー表示
 
     @Published var showBarText: Bool { didSet { defaults.set(showBarText, forKey: Key.showBarText) } }
     @Published var barMetric: BarMetric { didSet { defaults.set(barMetric.rawValue, forKey: Key.barMetric) } }
@@ -55,12 +55,12 @@ final class SettingsStore: ObservableObject {
     @Published var accountMode: AccountBarMode { didSet { defaults.set(accountMode.rawValue, forKey: Key.accountMode) } }
     @Published var pinnedEmail: String? { didSet { defaults.set(pinnedEmail, forKey: Key.pinnedEmail) } }
 
-    /// Used-percent thresholds for the severity colours. The `ThresholdSlider` keeps
-    /// them valid (1...99, critical ≥ warning + 1); these setters only persist.
+    /// 深刻度の色付けに使う使用率のしきい値。妥当性 (1...99、critical ≥ warning + 1) は
+    /// `ThresholdSlider` が保証する。これらの setter は永続化だけを行う。
     @Published var warningThreshold: Double { didSet { defaults.set(warningThreshold, forKey: Key.warningThreshold) } }
     @Published var criticalThreshold: Double { didSet { defaults.set(criticalThreshold, forKey: Key.criticalThreshold) } }
 
-    // MARK: Refresh
+    // MARK: リフレッシュ
 
     @Published var refreshInterval: RefreshInterval {
         didSet { defaults.set(refreshInterval.rawValue, forKey: Key.refreshInterval) }
@@ -73,9 +73,9 @@ final class SettingsStore: ObservableObject {
         self.showBarText = defaults.object(forKey: Key.showBarText) as? Bool ?? d.showBarText
         self.barMetric = (defaults.string(forKey: Key.barMetric).flatMap(BarMetric.init(rawValue:))) ?? d.barMetric
         self.percentBasis = (defaults.string(forKey: Key.percentBasis).flatMap(PercentBasis.init(rawValue:))) ?? d.percentBasis
-        // Out-of-the-box product defaults (differ from the Core-neutral DisplaySettings.default,
-        // which the formatter tests pin): a fresh install shows no metric label and the reset
-        // as a clock time. Existing users keep whatever they've already set.
+        // 製品としての初期値（formatter のテストが固定している Core 中立の
+        // DisplaySettings.default とは異なる）: 新規インストールではメトリックラベルを表示せず、
+        // リセットは時刻で表示する。既存ユーザーは設定済みの値をそのまま維持する。
         self.resetDisplay = (defaults.string(forKey: Key.resetDisplay).flatMap(ResetDisplay.init(rawValue:))) ?? .time
         self.showPercentSign = defaults.object(forKey: Key.showPercentSign) as? Bool ?? d.showPercentSign
         self.showMetricLabel = defaults.object(forKey: Key.showMetricLabel) as? Bool ?? false
@@ -83,9 +83,9 @@ final class SettingsStore: ObservableObject {
         self.pinnedEmail = defaults.string(forKey: Key.pinnedEmail)
         self.refreshInterval = RefreshInterval(rawValue: defaults.object(forKey: Key.refreshInterval) as? Int ?? RefreshInterval.twoMinutes.rawValue) ?? .twoMinutes
 
-        // Clamp persisted thresholds to a sane range and ordering, so a corrupt or
-        // legacy value can't leave the slider (or the colours) in an invalid state:
-        // warning ∈ [1, 98], critical ∈ [warning + 1, 99].
+        // 永続化したしきい値を妥当な範囲と順序にクランプし、破損値や旧バージョンの値によって
+        // スライダー（や色付け）が不正な状態に陥らないようにする:
+        // warning ∈ [1, 98]、critical ∈ [warning + 1, 99]。
         let rawW = defaults.object(forKey: Key.warningThreshold) as? Double ?? d.warningThreshold
         let rawC = defaults.object(forKey: Key.criticalThreshold) as? Double ?? d.criticalThreshold
         let warn = min(max(rawW, 1), 98)
@@ -93,19 +93,19 @@ final class SettingsStore: ObservableObject {
         self.criticalThreshold = min(max(rawC, warn + 1), 99)
     }
 
-    /// Whether the colour thresholds are still at the out-of-the-box 85 / 95.
+    /// 色のしきい値が初期値の 85 / 95 のままかどうか。
     var thresholdsAreDefault: Bool {
         warningThreshold == DisplaySettings.default.warningThreshold
             && criticalThreshold == DisplaySettings.default.criticalThreshold
     }
 
-    /// Restore the colour thresholds to the defaults (85 warning / 95 critical).
+    /// 色のしきい値を初期値 (warning 85 / critical 95) に戻す。
     func resetThresholds() {
         warningThreshold = DisplaySettings.default.warningThreshold
         criticalThreshold = DisplaySettings.default.criticalThreshold
     }
 
-    /// The Core value type the formatter consumes.
+    /// formatter が使う Core の値型。
     var displaySettings: DisplaySettings {
         DisplaySettings(
             showBarText: showBarText,

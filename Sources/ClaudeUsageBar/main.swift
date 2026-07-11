@@ -1,10 +1,10 @@
 import AppKit
 
-// Menu-bar-only app: `.accessory` means no Dock icon and no main window, just the
-// status item. Built as an SPM executable, so we bootstrap NSApplication directly
-// rather than using a SwiftUI `@main` scene.
-// Top-level executable code runs on the main thread at startup, so it is safe to
-// assume MainActor isolation here (AppDelegate is @MainActor).
+// メニューバー専用アプリ: `.accessory` にすると Dock アイコンもメインウィンドウも持たず、
+// ステータスアイテムだけになる。SPM の実行ファイルとしてビルドするため、SwiftUI の
+// `@main` シーンは使わず NSApplication を直接ブートストラップする。
+// トップレベルの実行コードは起動時にメインスレッドで走るため、ここで MainActor 分離を
+// 前提にしても安全（AppDelegate は @MainActor）。
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     let delegate = AppDelegate()

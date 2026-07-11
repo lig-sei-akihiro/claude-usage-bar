@@ -2,20 +2,21 @@ import AppKit
 import Combine
 import ClaudeUsageBarCore
 
-/// Shared, observable app state + actions. This is the single interface between the
-/// menu-bar layer (StatusItemController) and the SwiftUI views (PopoverView /
-/// SettingsView) so they can be built independently: views only read this model and
-/// call its actions; the controller owns the refresh loop and wires the actions.
+/// アプリ全体で共有する observable な状態とアクション。メニューバー層
+/// (StatusItemController) と SwiftUI ビュー (PopoverView / SettingsView) の間の
+/// 唯一のインターフェースで、両者を独立して組み立てられるようにする: ビューはこの
+/// モデルを読み取ってアクションを呼ぶだけ。リフレッシュループはコントローラーが持ち、
+/// アクションの結線もコントローラーが行う。
 @MainActor
 final class AppModel: ObservableObject {
-    /// Latest usage across all accounts. Views observe this; the controller sets it.
+    /// 全アカウントを横断した最新の使用状況。ビューが監視し、コントローラーが設定する。
     @Published var snapshot: UsageSnapshot = .empty
-    /// True while a refresh is in flight (for a spinner in the popover).
+    /// リフレッシュ実行中は true（ポップオーバーのスピナー用）。
     @Published var isRefreshing: Bool = false
 
     let settings: SettingsStore
 
-    // Actions are injected by StatusItemController so views stay decoupled from it.
+    // アクションは StatusItemController から注入し、ビューがそれと疎結合であるようにする。
     var refreshAction: @MainActor () -> Void = {}
     var openSettingsAction: @MainActor () -> Void = {}
     var quitAction: @MainActor () -> Void = { NSApp.terminate(nil) }

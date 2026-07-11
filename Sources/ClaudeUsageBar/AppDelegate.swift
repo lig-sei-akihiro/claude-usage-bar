@@ -1,8 +1,8 @@
 import AppKit
 import ClaudeUsageBarCore
 
-/// App lifecycle: on launch, create the `SettingsStore`, `AppModel`, and
-/// `StatusItemController` (retaining them), then trigger the first refresh.
+/// アプリのライフサイクル: 起動時に `SettingsStore`・`AppModel`・
+/// `StatusItemController` を生成して保持し、最初のリフレッシュを実行する。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: StatusItemController?

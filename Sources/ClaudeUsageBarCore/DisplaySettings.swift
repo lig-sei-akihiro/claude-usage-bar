@@ -1,18 +1,18 @@
 import Foundation
 
-// MARK: - Display settings (contract)
+// MARK: - 表示設定(contract)
 //
-// What the menu bar title shows — fully configurable, iStat-Menus style. A plain
-// value type in Core so the formatter can be unit-tested; the App layer's
-// SettingsStore maps UserDefaults onto this.
+// メニューバーのタイトルに何を表示するか — iStat Menus 風に完全に設定可能。フォーマッタを
+// ユニットテストできるよう Core 内の素の値型とし、App レイヤーの SettingsStore が
+// UserDefaults をこれにマッピングする。
 
-/// Which usage window feeds the bar title.
+/// どの使用量ウィンドウをバータイトルに反映するか。
 public enum BarMetric: String, Sendable, CaseIterable, Codable {
-    /// The rolling 5-hour session window — the default.
+    /// 移動する 5 時間のセッションウィンドウ — デフォルト。
     case session
     case weeklyAll
     case weeklyFable
-    /// Whichever window is currently rate-limiting the account.
+    /// 現在アカウントのレート制限を決定づけているウィンドウ。
     case mostConstrained
 
     public var shortLabel: String {
@@ -25,53 +25,53 @@ public enum BarMetric: String, Sendable, CaseIterable, Codable {
     }
 }
 
-/// Whether the percent shown is budget used or budget remaining.
+/// 表示するパーセントが使用済み予算か残り予算か。
 public enum PercentBasis: String, Sendable, CaseIterable, Codable {
-    /// The percent used — the default, matching the `claude-usage-all` command.
+    /// 使用済みのパーセント — デフォルト。`claude-usage-all` コマンドと一致する。
     case used
-    /// 100 − used. Opt-in via settings for those who prefer "budget left".
+    /// 100 − 使用済み。「残り予算」を好む場合に設定で有効化する。
     case remaining
 }
 
-/// How multiple accounts collapse into a single bar title.
+/// 複数アカウントを 1 つのバータイトルにどうまとめるか。
 public enum AccountBarMode: String, Sendable, CaseIterable, Codable {
-    /// Show the most-constrained account (its active/highest window). Default.
+    /// 最も制約の厳しいアカウントを表示する(そのアクティブ/最高値のウィンドウ)。デフォルト。
     case active
-    /// Show one specific account, pinned by email.
+    /// email で固定した特定の 1 アカウントを表示する。
     case pinned
-    /// Show every account compactly, separated by " | ".
+    /// 全アカウントを " | " 区切りでコンパクトに表示する。
     case all
 }
 
-/// What reset info (if any) the bar title appends after the percent.
+/// バータイトルがパーセントの後ろに(あれば)どのリセット情報を付加するか。
 public enum ResetDisplay: String, Sendable, CaseIterable, Codable {
-    /// Nothing. Default.
+    /// 何も付けない。デフォルト。
     case none
-    /// Time until reset, e.g. "· 3h12m".
+    /// リセットまでの時間。例: "· 3h12m"。
     case countdown
-    /// Clock time of the reset (JST), e.g. "· 12:49".
+    /// リセットの時刻(JST)。例: "· 12:49"。
     case time
 }
 
-/// The knobs that decide the bar title, with sensible out-of-the-box defaults.
+/// バータイトルを決めるための設定項目。すぐ使える妥当なデフォルト値を持つ。
 public struct DisplaySettings: Sendable, Equatable, Codable {
-    /// Master toggle for the bar text. When false, only an icon shows.
+    /// バーテキストのマスタートグル。false のときはアイコンのみ表示する。
     public var showBarText: Bool
     public var barMetric: BarMetric
     public var percentBasis: PercentBasis
-    /// Whether/how to append reset info to the bar (requirement: show reset time too).
+    /// リセット情報をバーに付加するか/どう付加するか(要件: リセット時刻も表示すること)。
     public var resetDisplay: ResetDisplay
-    /// Render the "%" sign after the number.
+    /// 数値の後ろに "%" 記号を描画する。
     public var showPercentSign: Bool
-    /// Prefix the metric label, e.g. "5h ".
+    /// メトリクスラベルを先頭に付ける。例: "5h "。
     public var showMetricLabel: Bool
     public var accountMode: AccountBarMode
-    /// Email to show when `accountMode == .pinned`.
+    /// `accountMode == .pinned` のときに表示する email。
     public var pinnedEmail: String?
-    /// Used-percent at/above which the text turns orange (warning). 0...100.
+    /// この使用率以上でテキストがオレンジ(警告)になる。0...100。
     public var warningThreshold: Double
-    /// Used-percent at/above which the text turns red (critical). Kept ≥ `warningThreshold`
-    /// by the settings UI, but the formatter tolerates any order (critical wins the tie).
+    /// この使用率以上でテキストが赤(重大)になる。設定 UI 上は `warningThreshold` 以上に
+    /// 保たれるが、フォーマッタはどの順序でも許容する(同値のときは critical が優先)。
     public var criticalThreshold: Double
 
     public init(

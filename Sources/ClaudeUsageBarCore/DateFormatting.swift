@@ -1,10 +1,10 @@
 import Foundation
 
-/// Date helpers for reset times. Kept in Core so both the bar formatter and the
-/// popover render identical strings.
+/// リセット時刻用の日付ヘルパー。バーのフォーマッタとポップオーバーが同一の文字列を
+/// 描画できるよう Core に置いている。
 public enum DateFormatting {
-    /// JST "M/d HH:mm" with seconds rounded to the nearest minute — mirrors the
-    /// `jst()` helper in `claude-usage-all` (…59:59.8 rounds up to :00).
+    /// JST の "M/d HH:mm"。秒を最も近い分に丸める — `claude-usage-all` の `jst()` ヘルパーと
+    /// 同じ挙動(…59:59.8 は :00 に切り上げ)。
     public static func jstResetString(_ date: Date?) -> String {
         guard let date else { return "" }
         var cal = Calendar(identifier: .gregorian)
@@ -14,7 +14,7 @@ public enum DateFormatting {
         return String(format: "%d/%d %02d:%02d", c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
     }
 
-    /// JST "HH:mm" only (no date) — compact reset clock time for the menu bar.
+    /// JST の "HH:mm" のみ(日付なし) — メニューバー向けのコンパクトなリセット時刻。
     public static func jstResetShortTime(_ date: Date?) -> String {
         guard let date else { return "" }
         var cal = Calendar(identifier: .gregorian)
@@ -24,7 +24,7 @@ public enum DateFormatting {
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
-    /// Compact time-until countdown: "3h12m", "48m", or "now" when already elapsed.
+    /// 残り時間を表すコンパクトなカウントダウン: "3h12m"、"48m"、既に経過していれば "now"。
     public static func countdownString(to date: Date?, now: Date = Date()) -> String {
         guard let date else { return "" }
         let secs = Int(date.timeIntervalSince(now))

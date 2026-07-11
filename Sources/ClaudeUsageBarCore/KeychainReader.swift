@@ -1,19 +1,19 @@
 import Foundation
 import CryptoKit
 
-/// Reads Claude Code OAuth tokens from the login Keychain.
+/// ログイン Keychain から Claude Code の OAuth トークンを読み取る。
 ///
-/// We shell out to `/usr/bin/security` rather than calling `SecItemCopyMatching`
-/// directly: a native read from an unsigned binary is not in the Keychain item's
-/// ACL and would trigger a modal prompt every launch. Shelling out matches the
-/// proven `claude-usage-all` approach and sidesteps the signing/entitlement work.
+/// `SecItemCopyMatching` を直接呼ぶのではなく `/usr/bin/security` を外部コマンドとして
+/// 実行する: 署名なしバイナリからのネイティブな読み取りは Keychain アイテムの ACL に
+/// 含まれておらず、起動のたびにモーダルダイアログを表示してしまう。外部コマンド化は
+/// 実績のある `claude-usage-all` の方式に倣うもので、署名・entitlement の作業を回避できる。
 public enum KeychainReader {
-    /// Keychain service name for a Claude Code config dir.
+    /// Claude Code 設定ディレクトリに対応する Keychain サービス名。
     ///
-    /// The default `~/.claude` dir uses the bare `"Claude Code-credentials"`.
-    /// Any other dir appends `sha256(absolutePath).hex[:8]`.
+    /// デフォルトの `~/.claude` ディレクトリは素の `"Claude Code-credentials"` を使う。
+    /// それ以外のディレクトリは `sha256(absolutePath).hex[:8]` を付加する。
     ///
-    /// Verified against known values: `.claude_main → e69dee50`, `.claude_sub → 9d381ca6`.
+    /// 既知の値で検証済み: `.claude_main → e69dee50`、`.claude_sub → 9d381ca6`。
     public static func serviceName(forConfigDir dir: String) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         if dir == home + "/.claude" {
@@ -24,9 +24,9 @@ public enum KeychainReader {
         return "Claude Code-credentials-" + String(hex.prefix(8))
     }
 
-    /// Reads the OAuth `accessToken` for a config dir, or nil if none is stored or the
-    /// item can't be parsed: shell out to `security find-generic-password -s <name> -w`,
-    /// JSON-decode stdout, and return `claudeAiOauth.accessToken`.
+    /// 設定ディレクトリの OAuth `accessToken` を読み取る。保存されていない、あるいは
+    /// アイテムをパースできない場合は nil を返す: `security find-generic-password -s <name> -w`
+    /// を外部実行し、標準出力を JSON デコードして `claudeAiOauth.accessToken` を返す。
     public static func accessToken(forConfigDir dir: String) -> String? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/security")
@@ -39,7 +39,7 @@ public enum KeychainReader {
         } catch {
             return nil
         }
-        // Read before waiting so a large payload can't deadlock on a full pipe buffer.
+        // パイプバッファが埋まって大きなペイロードでデッドロックしないよう、待機の前に読み取る。
         let data = out.fileHandleForReading.readDataToEndOfFile()
         proc.waitUntilExit()
         guard proc.terminationStatus == 0 else { return nil }

@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import ClaudeUsageBarCore
 
-/// Hermetic parsing tests: no network, no Keychain. Feeds fixed JSON fixtures into
-/// `UsageAPIClient.mapLimits` and a temp-dir tree into `ConfigDiscovery.discover`.
+/// 隔離されたパースのテスト: ネットワークも Keychain も使わない。固定の JSON フィクスチャを
+/// `UsageAPIClient.mapLimits` に、一時ディレクトリのツリーを `ConfigDiscovery.discover` に渡す。
 struct UsageParsingTests {
     @Test func mapLimitsParsesAllKinds() throws {
         let json = """
@@ -42,14 +42,14 @@ struct UsageParsingTests {
         #expect(abs(session.usedPercent - 42.5) < 0.0001)
         #expect(session.severity == "normal")
         #expect(session.isActive)
-        #expect(session.resetsAt != nil)  // fractional-seconds resets_at must parse
+        #expect(session.resetsAt != nil)  // 小数秒付きの resets_at がパースできること
 
         let weeklyAll = try #require(windows.first { $0.kind == .weeklyAll })
         #expect(weeklyAll.label == "Week (all)")
         #expect(abs(weeklyAll.usedPercent - 12) < 0.0001)
         #expect(!weeklyAll.isActive)
         #expect(weeklyAll.scopeModel == nil)
-        #expect(weeklyAll.resetsAt != nil)  // plain (no fractional) resets_at must parse
+        #expect(weeklyAll.resetsAt != nil)  // 小数秒なしの resets_at がパースできること
 
         let scoped = try #require(windows.first { $0.kind == .weeklyScoped })
         #expect(scoped.label == "Week (Fable)")
@@ -71,7 +71,7 @@ struct UsageParsingTests {
             _ = try UsageAPIClient.mapLimits(Data("not json".utf8))
             Issue.record("expected mapLimits to throw")
         } catch UsageAPIError.decoding {
-            // expected
+            // 期待どおり
         } catch {
             Issue.record("expected .decoding, got \(error)")
         }
@@ -88,7 +88,7 @@ struct UsageParsingTests {
         try #"{"oauthAccount":{"emailAddress":"me@example.com"}}"#
             .write(to: mainDir.appendingPathComponent(".claude.json"), atomically: true, encoding: .utf8)
 
-        // A `.claude*` dir without a `.claude.json` must be skipped.
+        // `.claude.json` が無い `.claude*` ディレクトリはスキップされる。
         try fm.createDirectory(at: home.appendingPathComponent(".claude_empty"), withIntermediateDirectories: true)
 
         let accounts = ConfigDiscovery.discover(homeDirectory: home.path)
@@ -98,16 +98,16 @@ struct UsageParsingTests {
         #expect(!accounts.contains { $0.folderName == "empty" })
     }
 
-    /// The common setup: a default member (no CLAUDE_CONFIG_DIR) whose `oauthAccount`
-    /// lives in the home-level `~/.claude.json`, with a `~/.claude` data dir that has no
-    /// `.claude.json` inside. Regression for "No Claude Code accounts found".
+    /// よくある構成: CLAUDE_CONFIG_DIR 未設定の default メンバーで、`oauthAccount` は
+    /// ホーム直下の `~/.claude.json` にあり、`~/.claude` データディレクトリの中には
+    /// `.claude.json` が無い。"No Claude Code accounts found" の回帰テスト。
     @Test func configDiscoveryReadsDefaultEmailFromHomeLevelJSON() throws {
         let fm = FileManager.default
         let home = fm.temporaryDirectory.appendingPathComponent("cub-\(UUID().uuidString)")
         try fm.createDirectory(at: home, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: home) }
 
-        // ~/.claude data dir (no .claude.json inside), plus the real config at ~/.claude.json.
+        // ~/.claude データディレクトリ（中に .claude.json は無い）＋ ~/.claude.json の実際の設定。
         try fm.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
         try #"{"oauthAccount":{"emailAddress":"solo@example.com"}}"#
             .write(to: home.appendingPathComponent(".claude.json"), atomically: true, encoding: .utf8)
@@ -118,8 +118,8 @@ struct UsageParsingTests {
         #expect(def.email == "solo@example.com")
     }
 
-    /// A `~/.claude` dir with neither a home-level nor an inside `.claude.json` yields no
-    /// email, so `UsageService` drops it rather than showing a phantom account.
+    /// ホーム直下にも中にも `.claude.json` が無い `~/.claude` ディレクトリは email を返さないので、
+    /// `UsageService` は幻のアカウントを見せる代わりにそれを捨てる。
     @Test func configDiscoveryDefaultWithoutAnyConfigHasNoEmail() throws {
         let fm = FileManager.default
         let home = fm.temporaryDirectory.appendingPathComponent("cub-\(UUID().uuidString)")
@@ -137,7 +137,7 @@ struct UsageParsingTests {
             accounts: [AccountUsage(email: "a@x", folders: ["main"], windows: [good])],
             generatedAt: Date(timeIntervalSince1970: 100))
 
-        // A previously-good account that now errors keeps its last value (error cleared).
+        // 直前まで正常だったアカウントが今エラーになっても、最後の値を保持する（error はクリア）。
         let fresh = UsageSnapshot(
             accounts: [AccountUsage(email: "a@x", folders: ["main"], error: "HTTP 429")],
             generatedAt: Date(timeIntervalSince1970: 200))
@@ -145,7 +145,7 @@ struct UsageParsingTests {
         #expect(merged.accounts.first?.session?.usedPercent == 40)
         #expect(merged.accounts.first?.error == nil)
 
-        // An account that never had data keeps its error.
+        // 一度もデータが無かったアカウントは error を保持する。
         let brandNew = UsageSnapshot(
             accounts: [AccountUsage(email: "new@x", folders: ["new"], error: "HTTP 429")],
             generatedAt: Date(timeIntervalSince1970: 200))
