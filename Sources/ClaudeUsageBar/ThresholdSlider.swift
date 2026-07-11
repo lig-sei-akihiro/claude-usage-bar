@@ -1,19 +1,18 @@
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// A single-track, dual-thumb slider for the warning/critical severity thresholds.
+/// warning/critical の severity しきい値を操作する、単一トラック・2 つの thumb を持つスライダー。
 ///
-/// The track is painted in the three severity zones — green up to `warning`, orange
-/// from `warning` to `critical`, red above `critical` — using the shared `SeverityColor`
-/// palette, so the control shows exactly the colours the menu bar will use. Each thumb
-/// drags its own boundary; the thumbs can't cross (critical stays ≥ warning + `gap`).
-/// Values are whole used-percents in `bounds`.
+/// トラックは 3 つの severity ゾーンで塗り分ける。`warning` までが緑、`warning` から `critical` までが
+/// オレンジ、`critical` より上が赤で、共有の `SeverityColor` パレットを使うため、このコントロールは
+/// メニューバーで実際に使われる色をそのまま示す。各 thumb は自分の境界をドラッグする。thumb 同士は
+/// 交差できない (critical は常に warning + `gap` 以上を保つ)。値は `bounds` の範囲内の整数の使用率 (%)。
 struct ThresholdSlider: View {
     @Binding var warning: Double
     @Binding var critical: Double
 
     private let bounds: ClosedRange<Double> = 1...99
-    /// Minimum separation (in percent) kept between the two thumbs.
+    /// 2 つの thumb の間に保つ最小の間隔 (パーセント)。
     private let gap: Double = 1
     private let thumb: CGFloat = 18
     private let track: CGFloat = 8
@@ -30,17 +29,17 @@ struct ThresholdSlider: View {
         .frame(height: 44)
     }
 
-    // MARK: Layout math (need the geometry width, so passed in)
+    // MARK: レイアウト計算 (geometry の width が必要なので引数で渡す)
 
-    /// The x of a thumb centre for `value`. Centres travel between the two half-thumb
-    /// margins so a thumb never clips off the ends.
+    /// `value` に対応する thumb 中心の x 座標。中心は両端の half-thumb 分のマージンの間を動くため、
+    /// thumb が端で切れることはない。
     private func pos(_ value: Double, width w: CGFloat) -> CGFloat {
         let usable = max(1, w - thumb)
         let span = bounds.upperBound - bounds.lowerBound
         return thumb / 2 + CGFloat((value - bounds.lowerBound) / span) * usable
     }
 
-    /// The (rounded, unclamped) value at an x in the slider's coordinate space.
+    /// スライダーの座標空間内の x における値 (丸め済み・クランプなし)。
     private func value(atX x: CGFloat, width w: CGFloat) -> Double {
         let usable = max(1, w - thumb)
         let span = bounds.upperBound - bounds.lowerBound
@@ -48,12 +47,12 @@ struct ThresholdSlider: View {
         return (bounds.lowerBound + t * span).rounded()
     }
 
-    /// Keep a thumb's % label from spilling past either edge of the control.
+    /// thumb の % ラベルがコントロールのいずれの端からもはみ出さないようにする。
     private func clampLabelX(_ x: CGFloat, width w: CGFloat) -> CGFloat {
         min(max(x, 16), w - 16)
     }
 
-    // MARK: Pieces
+    // MARK: 部品
 
     @ViewBuilder
     private func content(width w: CGFloat) -> some View {
@@ -80,7 +79,7 @@ struct ThresholdSlider: View {
         }
     }
 
-    /// The three colour zones, composed left-to-right and clipped to a rounded track.
+    /// 3 つの colour ゾーン。左から右へ重ね合わせ、角丸のトラックにクリップする。
     private func zones(width w: CGFloat) -> some View {
         let warningX = pos(warning, width: w)
         let criticalX = pos(critical, width: w)
@@ -104,7 +103,7 @@ struct ThresholdSlider: View {
             .overlay(Circle().strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5))
             .frame(width: thumb, height: thumb)
             .shadow(color: .black.opacity(0.25), radius: 1.5, y: 0.5)
-            // Bigger invisible hit area so the small knob is easy to grab.
+            // 小さいノブでも掴みやすいように、透明の当たり判定を大きくとる。
             .frame(width: thumb + 12, height: thumb + 12)
             .contentShape(Rectangle())
     }
@@ -115,7 +114,7 @@ struct ThresholdSlider: View {
             .foregroundStyle(Color(nsColor: SeverityColor.ns(severity)))
     }
 
-    // MARK: Gestures
+    // MARK: ジェスチャー
 
     private func dragForWarning(width w: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.space))

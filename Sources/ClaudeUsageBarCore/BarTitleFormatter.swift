@@ -1,22 +1,21 @@
 import Foundation
 
-/// Composes the menu bar title from a snapshot + display settings: decides which
-/// account and which window to show, whether to show remaining vs used, and the
-/// severity color.
+/// スナップショットと表示設定からメニューバータイトルを組み立てる。どのアカウントとどの
+/// ウィンドウを表示するか、残量と使用量のどちらを見せるか、そして深刻度の色を決める。
 ///
-/// Contract:
-/// - Respect `settings.showBarText` (caller may still want an icon when false).
-/// - `accountMode`: `.active` → most-constrained account; `.pinned` → matching
-///   `pinnedEmail` (fall back to active if not found); `.all` → a multi-line title,
-///   one account per line (capped at the 2 most-constrained), each line labelled.
-/// - `barMetric` picks the window (`.mostConstrained` uses the account's active/highest).
-/// - `percentBasis`: `.remaining` shows `remainingPercent` (default), `.used` shows `usedPercent`.
-/// - Optional metric label prefix (BarMetric.shortLabel) and reset countdown suffix.
-/// - Severity: `.error` if the shown account has an error; `.critical` at/above
-///   `settings.criticalThreshold` used; `.warning` when severity=="warning" or at/above
-///   `settings.warningThreshold` used; `.stale` when there is no data yet; else `.normal`.
+/// 契約:
+/// - `settings.showBarText` を尊重する（false でも呼び出し側はアイコン表示を望む場合がある）。
+/// - `accountMode`: `.active` → 最も制約の厳しいアカウント。`.pinned` → `pinnedEmail` に
+///   一致するアカウント（見つからなければ active にフォールバック）。`.all` → 1 行 1 アカウントの
+///   複数行タイトル（制約の厳しい上位 2 件まで）で、各行にラベルを付ける。
+/// - `barMetric` がウィンドウを選ぶ（`.mostConstrained` はそのアカウントの active/最高使用率を使う）。
+/// - `percentBasis`: `.remaining` は `remainingPercent` を表示（既定）、`.used` は `usedPercent` を表示。
+/// - 任意で指標ラベルの接頭辞（BarMetric.shortLabel）とリセットまでのカウントダウンの接尾辞を付ける。
+/// - 深刻度: 表示中アカウントがエラーなら `.error`。使用率が `settings.criticalThreshold` 以上なら
+///   `.critical`。severity=="warning" か使用率が `settings.warningThreshold` 以上なら `.warning`。
+///   まだデータがなければ `.stale`。いずれでもなければ `.normal`。
 public enum BarTitleFormatter {
-    /// Build the single title drawn in the status item.
+    /// ステータス項目に描画する単一のタイトルを組み立てる。
     public static func make(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> BarTitle {
         if settings.accountMode == .all {
             return makeAll(from: snapshot, settings: settings, now: now)
@@ -36,12 +35,12 @@ public enum BarTitleFormatter {
         return BarTitle(text: text, severity: sev)
     }
 
-    /// Pick the account the bar should represent for `.active`/`.pinned` modes.
-    /// Exposed for unit testing and reuse by the popover's highlight.
+    /// `.active`/`.pinned` モードでバーが代表するアカウントを選ぶ。
+    /// ユニットテスト用、およびポップオーバーのハイライトから再利用するために公開している。
     public static func selectedAccount(from snapshot: UsageSnapshot, settings: DisplaySettings) -> AccountUsage? {
         guard !snapshot.accounts.isEmpty else { return nil }
 
-        // Errored accounts count with 0 usage unless they still carry windows.
+        // エラーになったアカウントは、ウィンドウをまだ保持していない限り使用率 0 として扱う。
         let active = snapshot.accounts.max {
             ($0.mostConstrainedWindow?.usedPercent ?? 0) < ($1.mostConstrainedWindow?.usedPercent ?? 0)
         }
@@ -58,10 +57,10 @@ public enum BarTitleFormatter {
         }
     }
 
-    /// The used fraction (0...1) the bar's gauge represents: the window picked by
-    /// `barMetric` for the shown account, or the worst (max) across all in `.all`
-    /// mode. `nil` when there is no usable window. Shared by the menu-bar glyph and
-    /// the popover header badge so both track the same value.
+    /// バーのゲージが表す使用済み割合（0...1）。表示中アカウントについて `barMetric` が選んだ
+    /// ウィンドウの値、または `.all` モードでは全アカウント中の最悪値（最大）。使えるウィンドウが
+    /// なければ `nil`。メニューバーのグリフとポップオーバーのヘッダーバッジが同じ値を追えるよう、
+    /// 両者で共有する。
     public static func representativeFraction(from snapshot: UsageSnapshot, settings: DisplaySettings) -> Double? {
         if settings.accountMode == .all {
             return snapshot.accounts
@@ -74,18 +73,18 @@ public enum BarTitleFormatter {
         return window.usedPercent / 100
     }
 
-    // MARK: - Private
+    // MARK: - 内部
 
-    /// `.all` mode: a multi-line title, one labelled account per line, ordered by
-    /// account label (e.g. "main" before "sub"), capped at 2 lines. Lines join with
-    /// "\n" for the renderer to stack.
+    /// `.all` モード: 1 行 1 アカウントにラベルを付けた複数行タイトル。アカウントラベル順
+    /// （例: "sub" より前に "main"）で並べ、2 行までに制限する。行はレンダラが積み重ねられるよう
+    /// "\n" で連結する。
     private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date) -> BarTitle {
         let lines = allLines(from: snapshot, settings: settings, now: now)
         guard !lines.isEmpty else { return BarTitle(text: "", severity: .stale) }
 
-        // Severity spans ALL accounts, not just the (max 2) shown lines, so it tracks
-        // the same set as `representativeFraction`: a hidden high-usage account still
-        // colours the glyph to match the gauge fill.
+        // 深刻度は表示する（最大 2 行の）行だけでなく全アカウントにわたって評価する。これにより
+        // `representativeFraction` と同じ集合を追う。表示されていない高使用率のアカウントがあっても、
+        // グリフの色をゲージの塗りに合わせられる。
         let worst = snapshot.accounts
             .map { severity(account: $0, window: pickWindow(for: $0, metric: settings.barMetric), settings: settings) }
             .reduce(BarSeverity.normal, worseOf)
@@ -93,9 +92,9 @@ public enum BarTitleFormatter {
         return BarTitle(text: text, severity: worst)
     }
 
-    /// The per-account lines shown in `.all` mode, each with **its own** severity
-    /// (so the renderer can colour each line independently while the icon/gauge use
-    /// the worst/max). Ordered by label, capped at 2. Empty for a no-account snapshot.
+    /// `.all` モードで表示するアカウントごとの行。各行が **それ自身の** 深刻度を持つ
+    /// （アイコン/ゲージは最悪値/最大を使う一方で、レンダラが行ごとに独立して色付けできるようにするため）。
+    /// ラベル順に並べ、2 件までに制限する。アカウントのないスナップショットでは空になる。
     public static func allLines(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> [StackedLine] {
         snapshot.accounts
             .sorted { accountLabel($0) < accountLabel($1) }
@@ -110,14 +109,14 @@ public enum BarTitleFormatter {
             }
     }
 
-    /// Short label identifying an account on its stacked line: the config folders,
-    /// falling back to the email's local part. The anonymous `"default"` folder
-    /// (bare `~/.claude`) is never shown — a lone default account gets no label.
+    /// 積み重ね表示の行でアカウントを識別する短いラベル。設定フォルダ名を使い、なければ email の
+    /// ローカル部にフォールバックする。無名の `"default"` フォルダ（素の `~/.claude`）は決して
+    /// 表示しない。default 単独のアカウントにはラベルを付けない。
     private static func accountLabel(_ account: AccountUsage) -> String {
         let named = account.folders.filter { $0 != "default" }
         if !named.isEmpty { return named.joined(separator: "/") }
-        // No named folder. If there were no folders at all, fall back to the email's
-        // local part; if the only folder was "default", show nothing.
+        // 名前付きフォルダがない場合。フォルダが 1 つもなければ email のローカル部に
+        // フォールバックする。唯一のフォルダが "default" だったなら何も表示しない。
         if account.folders.isEmpty {
             if let at = account.email.firstIndex(of: "@") { return String(account.email[..<at]) }
             return account.email
@@ -125,7 +124,7 @@ public enum BarTitleFormatter {
         return ""
     }
 
-    /// The metric value fragment (label + number + % sign), without the countdown suffix.
+    /// 指標値の断片（ラベル + 数値 + % 記号）。カウントダウンの接尾辞は含まない。
     private static func valueFragment(window: RateWindow?, settings: DisplaySettings) -> String {
         var s = ""
         if settings.showMetricLabel { s += settings.barMetric.shortLabel + " " }
@@ -139,7 +138,7 @@ public enum BarTitleFormatter {
         return s
     }
 
-    /// Reset info appended to a fragment, per `settings.resetDisplay`.
+    /// `settings.resetDisplay` に従って断片に追記するリセット情報。
     private static func resetSuffix(window: RateWindow, settings: DisplaySettings, now: Date) -> String {
         switch settings.resetDisplay {
         case .none:
@@ -168,12 +167,12 @@ public enum BarTitleFormatter {
         return windowSeverity(window, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold)
     }
 
-    /// Severity for a single window against the configured used-percent thresholds.
-    /// The server's own `severity=="warning"` still escalates to at least `.warning`.
-    /// The single source of truth for severity thresholds — the menu-bar title and the
-    /// popover both call this, so a change to the thresholds moves both together.
-    /// Because the comparison is on used-percent (remaining ≤ 5 ⟺ used ≥ 95), it is
-    /// independent of the display's remaining-vs-used basis.
+    /// 設定された使用率パーセントのしきい値に照らした、単一ウィンドウの深刻度。
+    /// サーバー側の `severity=="warning"` は、それでも最低でも `.warning` まで引き上げる。
+    /// 深刻度しきい値の唯一の正となる場所であり、メニューバータイトルとポップオーバーの両方が
+    /// これを呼ぶため、しきい値を変えれば両者が一緒に動く。
+    /// 比較は使用率パーセントに対して行うため（残り ≤ 5 ⟺ 使用 ≥ 95）、表示が残量基準か使用量基準かに
+    /// 依存しない。
     public static func windowSeverity(_ window: RateWindow, warningAt warning: Double, criticalAt critical: Double) -> BarSeverity {
         if window.usedPercent >= critical { return .critical }
         if window.isWarning || window.usedPercent >= warning { return .warning }

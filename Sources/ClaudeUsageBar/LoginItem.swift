@@ -1,10 +1,10 @@
 import Foundation
 import ServiceManagement
 
-/// Registers the app to launch at login via `SMAppService` (macOS 13+). No helper
-/// bundle or entitlement is needed — `SMAppService.mainApp` registers this .app
-/// itself. Works from a packaged, (ad-hoc) signed bundle; a bare `swift run`
-/// executable has no bundle to register, so the call just no-ops with an error log.
+/// `SMAppService` (macOS 13+) を使ってログイン時に起動するようアプリを登録する。ヘルパー
+/// バンドルや entitlement は不要で、`SMAppService.mainApp` がこの .app 自身を登録する。
+/// パッケージ化された (ad-hoc) 署名済みバンドルからは動作する。素の `swift run` で作った
+/// 実行ファイルには登録すべきバンドルがないため、呼び出しはエラーログを出して何もしない。
 enum LoginItem {
     static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
 

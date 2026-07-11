@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// The dropdown shown when the status item is clicked: one row per account with
-/// session/weekly bars and reset times, plus a footer with refresh / settings / quit.
+/// ステータスアイテムをクリックしたときに表示されるドロップダウン。アカウントごとに
+/// 1行（セッション/週次のバーとリセット時刻）を並べ、フッターに refresh / settings / quit を置く。
 struct PopoverView: View {
     @EnvironmentObject var model: AppModel
 
@@ -12,7 +12,7 @@ struct PopoverView: View {
             if model.snapshot.accounts.isEmpty {
                 emptyState
             } else {
-                // No scroll — the popover sizes to fit its content.
+                // スクロールしない — ポップオーバーは内容に合わせてサイズが決まる。
                 ForEach(model.snapshot.accounts) { account in
                     AccountCard(account: account,
                                 basis: model.settings.percentBasis,
@@ -62,7 +62,7 @@ struct PopoverView: View {
         }
     }
 
-    /// Footer timestamp; the empty snapshot's `.distantPast` renders as "never".
+    /// フッターのタイムスタンプ。空スナップショットの `.distantPast` は "never" として描画される。
     private static func updatedString(_ date: Date) -> String {
         if date == .distantPast { return "never" }
         let f = DateFormatter()
@@ -71,9 +71,9 @@ struct PopoverView: View {
     }
 }
 
-// MARK: - Account card
+// MARK: - アカウントカード
 
-/// One account: email + folders, then either an error or its usage windows.
+/// 1アカウント分: email ＋ フォルダ、続けてエラーか usage window のいずれかを表示。
 private struct AccountCard: View {
     let account: AccountUsage
     let basis: PercentBasis
@@ -83,7 +83,7 @@ private struct AccountCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 8) {
-                // Per-account Clawd: colour + gauge reflect THIS account's state.
+                // このアカウント専用の Clawd: 色＋ゲージがこのアカウントの状態を反映する。
                 Image(nsImage: badge)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -91,7 +91,7 @@ private struct AccountCard: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(account.email)
                         .font(.subheadline.bold())
-                    // Hide the anonymous "default" folder; only show real folder names.
+                    // 匿名の "default" フォルダは隠し、実名のフォルダだけ表示する。
                     let named = account.folders.filter { $0 != "default" }
                     if !named.isEmpty {
                         Text(named.joined(separator: ", "))
@@ -120,13 +120,13 @@ private struct AccountCard: View {
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// Up to three windows in a stable order: session, weekly-all, weekly-Fable.
+    /// 安定した順序で最大3つの window: session、weekly-all、weekly-Fable。
     private var windows: [RateWindow] {
         [account.session, account.weeklyAll, account.weeklyFable].compactMap { $0 }
     }
 
-    /// Clawd for THIS account: coloured by its worst window via the shared palette
-    /// (green/orange/red), gauge filled to that window's usage.
+    /// このアカウントの Clawd: 共有パレット経由で最も逼迫した window の色（緑/アンバー/赤）で塗り、
+    /// ゲージはその window の使用量まで満たす。
     private var badge: NSImage {
         ClawdGlyph.badge(fraction: fraction, color: SeverityColor.ns(severity), height: 22)
     }
@@ -142,9 +142,9 @@ private struct AccountCard: View {
     }
 }
 
-// MARK: - Window row
+// MARK: - Window 行
 
-/// A single usage window: label, a fill bar, the percent, and the reset time.
+/// 1つの usage window: ラベル、塗りバー、パーセント、リセット時刻。
 private struct WindowRow: View {
     let window: RateWindow
     let basis: PercentBasis
@@ -186,13 +186,13 @@ private struct WindowRow: View {
     }
 }
 
-// MARK: - Usage bar
+// MARK: - 使用量バー
 
-/// A horizontal fill bar; `fraction` is 0...1 of budget used.
+/// 水平の塗りバー。`fraction` は使用済み予算の 0...1。
 ///
-/// Uses ProgressView instead of a GeometryReader-based bar: GeometryReader is greedy
-/// and, inside a self-sizing popover, drives layout-recursion warnings (a documented
-/// pitfall in similar menu bar apps). ProgressView sizes cleanly to the row width.
+/// GeometryReader ベースのバーではなく ProgressView を使う: GeometryReader は貪欲で、
+/// 自動サイズのポップオーバー内ではレイアウト再帰の警告を招く（同種のメニューバーアプリで
+/// 知られた落とし穴）。ProgressView は行幅にきれいに収まる。
 private struct UsageBar: View {
     let fraction: Double
     let color: Color

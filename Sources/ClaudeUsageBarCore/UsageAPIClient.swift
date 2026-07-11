@@ -1,6 +1,6 @@
 import Foundation
 
-/// Errors surfaced to the UI as an account `error` string.
+/// アカウントの `error` 文字列として UI に表出するエラー。
 public enum UsageAPIError: Error, Sendable, Equatable {
     case noToken
     case http(Int)
@@ -17,23 +17,23 @@ public enum UsageAPIError: Error, Sendable, Equatable {
     }
 }
 
-/// Calls `GET https://api.anthropic.com/api/oauth/usage` with the OAuth bearer token
-/// and the required `anthropic-beta: oauth-2025-04-20` header, then maps the
-/// `limits[]` payload into `[RateWindow]`.
+/// OAuth の bearer トークンと必須の `anthropic-beta: oauth-2025-04-20` ヘッダーを付けて
+/// `GET https://api.anthropic.com/api/oauth/usage` を呼び出し、`limits[]` ペイロードを
+/// `[RateWindow]` にマッピングする。
 ///
-/// Mapping rules (from `claude-usage-all`):
-/// - `kind == "session"` → `.session`, label "Session (5h)"
-/// - `kind == "weekly_all"` → `.weeklyAll`, label "Week (all)"
-/// - `kind == "weekly_scoped"` → `.weeklyScoped`, label "Week (<model>)",
-///   carrying `scope.model.display_name` into `scopeModel`
-/// - copy `percent`→usedPercent, parse `resets_at` (UTC ISO-8601), `severity`, `is_active`
+/// マッピング規則（`claude-usage-all` 由来）:
+/// - `kind == "session"` → `.session`、ラベル "Session (5h)"
+/// - `kind == "weekly_all"` → `.weeklyAll`、ラベル "Week (all)"
+/// - `kind == "weekly_scoped"` → `.weeklyScoped`、ラベル "Week (<model>)"。
+///   `scope.model.display_name` を `scopeModel` に格納する
+/// - `percent`→usedPercent をコピーし、`resets_at`（UTC ISO-8601）、`severity`、`is_active` を解釈する
 public struct UsageAPIClient: Sendable {
     public static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     public static let betaHeader = "oauth-2025-04-20"
 
     public init() {}
 
-    /// Fetch and map the usage windows for one bearer token.
+    /// 1 つの bearer トークンについて使用状況ウィンドウを取得しマッピングする。
     public func fetchWindows(token: String) async throws -> [RateWindow] {
         var req = URLRequest(url: Self.usageURL)
         req.httpMethod = "GET"
@@ -57,8 +57,8 @@ public struct UsageAPIClient: Sendable {
         return try Self.mapLimits(data)
     }
 
-    /// Maps the raw `/api/oauth/usage` payload into `[RateWindow]`. Factored out (and
-    /// internal) so it can be unit-tested against fixtures without a network call.
+    /// 生の `/api/oauth/usage` ペイロードを `[RateWindow]` にマッピングする。ネットワーク呼び出しなしに
+    /// フィクスチャに対してユニットテストできるよう、切り出して internal にしている。
     static func mapLimits(_ data: Data) throws -> [RateWindow] {
         struct Response: Decodable {
             struct Limit: Decodable {
@@ -83,7 +83,7 @@ public struct UsageAPIClient: Sendable {
             throw UsageAPIError.decoding(String(describing: error))
         }
 
-        // Tolerate fractional seconds first, then fall back to plain internet date-time.
+        // まず小数秒付きを許容し、だめなら小数秒なしの internet date-time にフォールバックする。
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let plain = ISO8601DateFormatter()

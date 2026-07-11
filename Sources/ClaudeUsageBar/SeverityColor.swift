@@ -2,25 +2,23 @@ import AppKit
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// The one severity palette shared across the whole UI — the menu-bar glyph and
-/// text, the popover per-account badges, and the popover usage bars — so "healthy"
-/// always reads the same. A traffic-light ramp: green when normal, amber at warning,
-/// red at critical/error, grey when stale. Warning is a yellow-gold amber (not a
-/// red-orange) so it stays clearly distinct from the red at small sizes — a
-/// red-shifted orange sat only ~25° of hue from the red and the two blurred together.
+/// UI 全体で共有する唯一の severity パレット。メニューバーの glyph とテキスト、ポップオーバーの
+/// アカウントごとのバッジ、ポップオーバーの使用量バーで共通に使い、「健全」が常に同じ見え方に
+/// なるようにする。信号機のようなグラデーション: normal は緑、warning はアンバー、critical/error は
+/// 赤、stale はグレー。warning は (赤みのオレンジではなく) 黄金色のアンバーにして、小さいサイズでも
+/// 赤とはっきり区別できるようにしている。赤寄りのオレンジは赤と色相が ~25° しか離れておらず、両者が
+/// にじんで見分けにくかった。
 ///
-/// Each severity is **appearance-adaptive**: a darker, saturated value on light
-/// backgrounds and a brighter one on dark backgrounds. macOS's stock `.systemGreen`
-/// etc. barely shift between themes — the light green in particular sat at only
-/// ~2.2:1 on white (illegibly pale), and the dark green was a muddy mid-tone. The
-/// values below are the Radix Colors *step 11* ("accessible text") tokens: tuned to
-/// clear WCAG AA as text against the theme's own background while staying vibrant
-/// enough to read as a bar fill or the Clawd glyph. Measured contrast on the popover
-/// backgrounds: light ≥ 4.5:1, dark ≥ 7:1.
+/// 各 severity は **appearance に追従する**。ライト背景では暗めで彩度の高い値、ダーク背景では明るめの
+/// 値になる。macOS 標準の `.systemGreen` などはテーマ間でほとんど変化せず、特にライトの緑は白地で
+/// ~2.2:1 (判読できないほど淡い) しかなく、ダークの緑は濁った中間調だった。以下の値は Radix Colors の
+/// *step 11* ("accessible text") トークンで、テーマ自身の背景に対してテキストとして WCAG AA を
+/// 満たしつつ、バーの塗りや Clawd glyph として読めるだけの鮮やかさを保つよう調整されている。
+/// ポップオーバー背景での実測コントラスト: ライト ≥ 4.5:1、ダーク ≥ 7:1。
 enum SeverityColor {
-    /// An appearance-adaptive `NSColor`. Resolves to the light or dark variant per the
-    /// drawing appearance, so one token serves the light popover, the dark popover, and
-    /// the (independently light-or-dark) menu bar.
+    /// appearance に追従する `NSColor`。描画時の appearance に応じてライト/ダークいずれかの
+    /// バリアントに解決されるため、1 つのトークンでライトのポップオーバー、ダークのポップオーバー、
+    /// および (それらとは独立にライト/ダークが決まる) メニューバーをまかなえる。
     static func ns(_ severity: BarSeverity) -> NSColor {
         switch severity {
         case .normal:           return dynamic(light: 0x218358, dark: 0x3DD68C)
@@ -30,7 +28,7 @@ enum SeverityColor {
         }
     }
 
-    /// The SwiftUI flavour of the same palette; resolves per the view's colour scheme.
+    /// 同じパレットの SwiftUI 版。view の colour scheme に応じて解決される。
     static func color(_ severity: BarSeverity) -> Color {
         Color(nsColor: ns(severity))
     }
@@ -51,18 +49,17 @@ enum SeverityColor {
 }
 
 extension NSColor {
-    /// Flatten a dynamic (appearance-dependent) colour to its concrete value for a
-    /// specific appearance. The menu bar's light/dark state is driven by the wallpaper
-    /// and can differ from the app's effective appearance, so its glyph and title must
-    /// be resolved against the status button's own appearance rather than left to
-    /// resolve ambiguously at draw time.
+    /// 動的な (appearance に依存する) 色を、特定の appearance に対する具体的な値へと平坦化する。
+    /// メニューバーのライト/ダーク状態は壁紙によって決まり、アプリの effective appearance とは異なる
+    /// ことがあるため、その glyph とタイトルは描画時に曖昧に解決させるのではなく、status button 自身の
+    /// appearance に対して解決しなければならない。
     func resolved(for appearance: NSAppearance?) -> NSColor {
         guard let appearance else { return self }
         var out = self
         appearance.performAsCurrentDrawingAppearance {
-            // Go through `cgColor` (not `usingColorSpace`): it resolves *any* dynamic
-            // colour — including semantic catalog colours like `labelColor`, which
-            // `usingColorSpace` can refuse — to its concrete value for this appearance.
+            // `usingColorSpace` ではなく `cgColor` を経由する。これは *あらゆる* 動的な色を、
+            // (`usingColorSpace` が拒否することのある `labelColor` のようなセマンティックな
+            // カタログ色も含めて) この appearance に対する具体的な値へと解決する。
             out = NSColor(cgColor: self.cgColor) ?? self
         }
         return out

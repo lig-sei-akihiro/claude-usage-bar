@@ -1,14 +1,14 @@
 import AppKit
 
-/// Pixel-art "Clawd" (the Claude Code mascot) + a mini usage gauge: a chunky body,
-/// two eyes cut out as holes, two feet, and a 5-segment meter below. Used both for
-/// the menu-bar status item and the popover header so they read as one identity.
+/// ピクセルアートの「Clawd」(Claude Code のマスコット) と小さな使用量ゲージ。ずんぐりした胴体、
+/// 穴として切り抜いた 2 つの目、2 本の足、その下の 5 セグメントのメーターで構成する。メニューバーの
+/// status item とポップオーバーのヘッダーの両方で使い、同一のアイデンティティとして読ませる。
 ///
-/// Drawn **non-template** in an explicit colour. The gauge fills to the live usage
-/// fraction. The body silhouette mirrors the sprite in `Scripts/gen_icon_svg.py`
-/// (which drives the app icon); keep them in sync if the character changes.
+/// 明示的な色で **non-template** として描画する。ゲージはリアルタイムの使用量の割合まで満たされる。
+/// 胴体のシルエットは `Scripts/gen_icon_svg.py` (アプリアイコンを生成する) のスプライトと一致する。
+/// キャラクターを変更する場合は両者を同期させること。
 enum ClawdGlyph {
-    // '.' transparent · 'B' body · 'E' eye (left transparent → reads as a hole)
+    // '.' は透明 · 'B' は胴体 · 'E' は目 (透明のまま残し → 穴として読ませる)
     private static let sprite = [
         ".BBBBBBBBBBB.",
         "BBBBBBBBBBBBB",
@@ -26,15 +26,14 @@ enum ClawdGlyph {
     private static let rows = 11
     private static let gaugeSegments = 5
 
-    /// Status-item image: content centred in the full menu-bar height. Drawn in a
-    /// fixed light colour by the caller so it stays visible on the (sometimes
-    /// ambiguously light/dark) menu bar.
+    /// status item 用の画像。コンテンツをメニューバーの全高の中央に配置する。呼び出し側が
+    /// 固定の明るい色で描画するため、(ときにライト/ダークが曖昧な) メニューバー上でも視認性を保つ。
     static func image(fraction: Double?, color: NSColor) -> NSImage {
         draw(fraction: fraction, color: color, canvasHeight: NSStatusBar.system.thickness, tight: false)
     }
 
-    /// Tightly-cropped badge at a target height, for the popover header. The caller
-    /// should pass an appearance-adaptive colour (the popover can be light or dark).
+    /// ポップオーバーのヘッダー用に、目標の高さで余白を詰めて切り抜いたバッジ。呼び出し側は
+    /// appearance に追従する色を渡すこと (ポップオーバーはライトにもダークにもなり得る)。
     static func badge(fraction: Double?, color: NSColor, height: CGFloat) -> NSImage {
         draw(fraction: fraction, color: color, canvasHeight: height, tight: true)
     }
@@ -62,14 +61,14 @@ enum ClawdGlyph {
         let image = NSImage(size: NSSize(width: ceil(clawdW), height: canvasHeight),
                             flipped: true) { _ in
             color.setFill()
-            // Body (eye cells skipped → transparent holes that read as dark eyes).
+            // 胴体 (目のセルはスキップ → 透明な穴となり、暗い目として読める)。
             for (r, row) in sprite.enumerated() {
                 for (c, ch) in row.enumerated() where ch == "B" {
                     NSBezierPath(rect: NSRect(x: CGFloat(c) * px, y: top + CGFloat(r) * px,
                                               width: px + 0.4, height: px + 0.4)).fill()
                 }
             }
-            // Segmented usage gauge below the body.
+            // 胴体の下のセグメント分割された使用量ゲージ。
             let segGap = px * 0.55
             let segW = (clawdW - segGap * CGFloat(gaugeSegments - 1)) / CGFloat(gaugeSegments)
             let gaugeY = top + clawdH + gap
@@ -78,8 +77,8 @@ enum ClawdGlyph {
                                   width: segW, height: gaugeH)
                 let path = NSBezierPath(roundedRect: rect, xRadius: gaugeH * 0.35,
                                         yRadius: gaugeH * 0.35)
-                // Lit segments are solid; empty ones are faint but distinct so the
-                // fill level reads at a glance.
+                // 点灯セグメントは塗りつぶし、空のセグメントは薄いが判別できるようにして、
+                // 満たされた度合いが一目で読めるようにする。
                 (i < filled ? color : color.withAlphaComponent(0.20)).setFill()
                 path.fill()
             }

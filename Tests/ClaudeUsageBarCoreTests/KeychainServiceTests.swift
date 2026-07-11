@@ -2,9 +2,9 @@ import Foundation
 import Testing
 @testable import ClaudeUsageBarCore
 
-/// Locks the Keychain service-name derivation against known-good values captured
-/// from the working `claude-usage-all` script. These sha256 prefixes are a fixed
-/// property of the input path, independent of the machine running the test.
+/// Keychain のサービス名導出を、動作実績のある `claude-usage-all` スクリプトから採取した
+/// 既知の正しい値に対して固定する。これらの sha256 プレフィックスは入力パスに固有の値で、
+/// テストを実行するマシンに依存しない。
 struct KeychainServiceTests {
     @Test func knownServiceNames() {
         #expect(KeychainReader.serviceName(forConfigDir: "/Users/seiakihiro/.claude_main")

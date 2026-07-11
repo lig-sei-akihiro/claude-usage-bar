@@ -1,9 +1,9 @@
 // swift-tools-version:5.9
 import PackageDescription
 
-// Swift 5.9 tools version keeps concurrency checking lenient on the Swift 6 toolchain,
-// which is the pragmatic choice for a small personal menu-bar tool. Zero external
-// dependencies — everything is a system framework (AppKit, SwiftUI, CryptoKit, Security).
+// tools version を Swift 5.9 にしておくと、Swift 6 ツールチェーン上でも並行性チェックが
+// 緩いままになる。個人用の小さなメニューバーツールには現実的な選択だ。外部依存はゼロで、
+// すべてシステムフレームワーク (AppKit, SwiftUI, CryptoKit, Security) を使う。
 let package = Package(
     name: "ClaudeUsageBar",
     platforms: [
@@ -14,11 +14,11 @@ let package = Package(
         .executable(name: "ClaudeUsageBar", targets: ["ClaudeUsageBar"]),
     ],
     targets: [
-        // Pure logic: config discovery, Keychain, usage API, formatting. No AppKit — unit-testable.
+        // 純粋なロジック: 設定の検出、Keychain、使用状況 API、整形。AppKit 非依存でユニットテスト可能。
         .target(
             name: "ClaudeUsageBarCore"
         ),
-        // The menu bar app: NSStatusItem + SwiftUI popover/settings hosted via AppKit.
+        // メニューバーアプリ: NSStatusItem と、AppKit 経由でホストする SwiftUI のポップオーバー/設定画面。
         .executableTarget(
             name: "ClaudeUsageBar",
             dependencies: ["ClaudeUsageBarCore"]

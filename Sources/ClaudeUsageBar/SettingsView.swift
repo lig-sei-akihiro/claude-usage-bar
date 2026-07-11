@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 import ClaudeUsageBarCore
 
-/// iStat-Menus-style settings: launch-at-login, the bar's metric / remaining-vs-used /
-/// reset display / label toggles, account mode + pin, and refresh cadence. `accounts`
-/// is passed at open time to populate the pin picker.
+/// iStat Menus 風の設定。ログイン時起動、バーの metric / 残量か使用量か / reset の表示 /
+/// ラベルの各トグル、アカウントモードとピン留め、リフレッシュ間隔。`accounts` は pin の
+/// ピッカーを埋めるために開いた時点で渡される。
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     var accounts: [AccountUsage] = []
-    /// System login-item state (not a UserDefault — SMAppService owns it). Seeded on open.
+    /// システムの login-item の状態 (UserDefault ではなく SMAppService が保持する)。開いた時点で初期値を入れる。
     @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
@@ -42,9 +42,9 @@ struct SettingsView: View {
             }
 
             Section("Menu Bar") {
-                // No preview here — the real menu bar updates live as these change.
-                // The master toggle must stay OUTSIDE the .disabled scope, or turning
-                // it off disables itself and you can never turn it back on.
+                // ここにはプレビューを置かない。これらの変更に合わせて実際のメニューバーがリアルタイムに更新される。
+                // マスタートグルは .disabled のスコープの外に置かなければならない。さもないとオフにした時点で
+                // トグル自身が無効化され、二度とオンに戻せなくなる。
                 Toggle("Show text in menu bar", isOn: $settings.showBarText)
 
                 Group {
@@ -118,9 +118,9 @@ struct SettingsView: View {
         .frame(width: 380)
     }
 
-    /// The bundle's marketing version (`CFBundleShortVersionString`), set by
-    /// `Scripts/package_app.sh`. `nil` in a bare `swift run` build (no Info.plist),
-    /// in which case the header simply omits the version line.
+    /// バンドルのマーケティングバージョン (`CFBundleShortVersionString`)。`Scripts/package_app.sh` が
+    /// 設定する。素の `swift run` ビルドでは (Info.plist が無いため) `nil` になり、その場合ヘッダーは
+    /// バージョン行を単に省略する。
     static var appVersion: String? {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
     }

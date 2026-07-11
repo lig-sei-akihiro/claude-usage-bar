@@ -1,12 +1,11 @@
 import Foundation
 
-/// Orchestrates a full refresh: discover config dirs → read tokens → fetch usage
-/// concurrently → group by email into a `UsageSnapshot`.
+/// 一連のリフレッシュ処理を統括する: 設定ディレクトリの検出 → トークンの読み取り →
+/// 使用量の並行取得 → email 単位でまとめて `UsageSnapshot` を生成。
 ///
-/// Grouping matches `claude-usage-all`: usage is per-authentication, so multiple
-/// config folders sharing one email collapse into a single `AccountUsage`. Each
-/// folder's token is tried until one fetches; folders that can't authenticate are
-/// dropped from the label.
+/// グルーピングは `claude-usage-all` と一致する: 使用量は認証単位なので、同じ email を
+/// 共有する複数の設定フォルダは 1 つの `AccountUsage` にまとまる。各フォルダのトークンは
+/// いずれかが取得に成功するまで順に試す。認証できないフォルダはラベルから除外される。
 public struct UsageService: Sendable {
     public var client: UsageAPIClient
 
@@ -14,13 +13,13 @@ public struct UsageService: Sendable {
         self.client = client
     }
 
-    /// Produce a snapshot across all discovered accounts. Fetches run concurrently;
-    /// per-account failures become `AccountUsage.error` rather than throwing.
+    /// 検出した全アカウントにまたがるスナップショットを生成する。取得は並行して実行され、
+    /// アカウント単位の失敗は例外を投げるのではなく `AccountUsage.error` になる。
     public func snapshot(now: Date = Date()) async -> UsageSnapshot {
-        // Group folders by authenticated email. Config dirs without an email (e.g. a
-        // bare ~/.claude) are not real accounts — skip them so they never appear as
-        // "(unknown)" in the popover or feed the menu bar title.
-        // Discovery is sorted by configDir, so folder order within a group is stable.
+        // 認証済みの email 単位でフォルダをグルーピングする。email を持たない設定ディレクトリ
+        // (例: 素の ~/.claude)は実在のアカウントではない — スキップして、ポップオーバーに
+        // "(unknown)" として現れたりメニューバーのタイトルに紛れ込んだりしないようにする。
+        // 検出は configDir 順にソートされるので、グループ内のフォルダ順序は安定する。
         var groups: [String: [(folder: String, dir: String)]] = [:]
         for account in ConfigDiscovery.discover() {
             guard let email = account.email else { continue }
@@ -31,11 +30,11 @@ public struct UsageService: Sendable {
         return await withTaskGroup(of: AccountUsage.self) { group in
             for (email, entries) in groups {
                 group.addTask {
-                    // Folders sharing an email may each hold a different token (e.g. a stale
-                    // default ~/.claude alongside an active ~/.claude_main). Try each in turn
-                    // and take the first that actually fetches, so one expired token doesn't
-                    // sink the account. Folders whose token can't authenticate (missing, 401,
-                    // 403) are dropped from the label — a broken folder isn't worth showing.
+                    // email を共有するフォルダは、それぞれ異なるトークンを持ちうる(例: 使用中の
+                    // ~/.claude_main と並存する古いデフォルトの ~/.claude)。順に試して実際に取得
+                    // できた最初のものを採用し、期限切れのトークン 1 つでアカウント全体が沈まない
+                    // ようにする。トークンが認証できないフォルダ(欠落、401、403)はラベルから除外
+                    // する — 壊れたフォルダを表示する価値はない。
                     var excluded = Set<String>()
                     var lastError = "no token"
                     var fetched: [RateWindow]?
@@ -64,7 +63,7 @@ public struct UsageService: Sendable {
             }
             var accounts: [AccountUsage] = []
             for await account in group { accounts.append(account) }
-            // Sort by config-folder name (e.g. "main" before "sub"), not email.
+            // email ではなく設定フォルダ名でソートする(例: "sub" より "main" が先)。
             accounts.sort { $0.folders.joined(separator: "/") < $1.folders.joined(separator: "/") }
             return UsageSnapshot(accounts: accounts, generatedAt: now)
         }
