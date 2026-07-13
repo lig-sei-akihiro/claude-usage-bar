@@ -31,6 +31,7 @@ final class SettingsStore: ObservableObject {
 
     private enum Key {
         static let showBarText = "showBarText"
+        static let showBarIcon = "showBarIcon"
         static let barMetric = "barMetric"
         static let percentBasis = "percentBasis"
         static let showResetCountdown = "showResetCountdown"
@@ -47,6 +48,10 @@ final class SettingsStore: ObservableObject {
     // MARK: バー表示
 
     @Published var showBarText: Bool { didSet { defaults.set(showBarText, forKey: Key.showBarText) } }
+    /// メニューバーに Clawd グリフ + ゲージを表示するか。テキスト表示とは独立。ただしテキストと
+    /// 両方を消すとステータスアイテムが空になるため、UI/描画の双方で少なくとも一方は残す。
+    /// グリフ描画は App レイヤー専任のため、Core の `DisplaySettings` には持たせない。
+    @Published var showBarIcon: Bool { didSet { defaults.set(showBarIcon, forKey: Key.showBarIcon) } }
     @Published var barMetric: BarMetric { didSet { defaults.set(barMetric.rawValue, forKey: Key.barMetric) } }
     @Published var percentBasis: PercentBasis { didSet { defaults.set(percentBasis.rawValue, forKey: Key.percentBasis) } }
     @Published var resetDisplay: ResetDisplay { didSet { defaults.set(resetDisplay.rawValue, forKey: Key.resetDisplay) } }
@@ -71,6 +76,7 @@ final class SettingsStore: ObservableObject {
         let d = DisplaySettings.default
 
         self.showBarText = defaults.object(forKey: Key.showBarText) as? Bool ?? d.showBarText
+        self.showBarIcon = defaults.object(forKey: Key.showBarIcon) as? Bool ?? true
         self.barMetric = (defaults.string(forKey: Key.barMetric).flatMap(BarMetric.init(rawValue:))) ?? d.barMetric
         self.percentBasis = (defaults.string(forKey: Key.percentBasis).flatMap(PercentBasis.init(rawValue:))) ?? d.percentBasis
         // 製品としての初期値（formatter のテストが固定している Core 中立の

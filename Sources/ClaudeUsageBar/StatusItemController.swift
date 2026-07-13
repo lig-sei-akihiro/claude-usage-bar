@@ -185,7 +185,13 @@ final class StatusItemController {
             color: SeverityColor.ns(title.severity).resolved(for: appearance))
         button.contentTintColor = nil
 
-        if settings.showBarText && !title.text.isEmpty {
+        let hasText = settings.showBarText && !title.text.isEmpty
+        // アイコンとテキストの両方を消すとステータスアイテムが空になり、クリックする的すら
+        // 無くなる。テキストが出ないときは `showBarIcon` の設定に関わらずアイコンを描き、常に
+        // 何かがメニューバーに残るようにする(UI 側でも両方オフにはできないよう抑止している)。
+        let showIcon = model.settings.showBarIcon || !hasText
+
+        if hasText {
             if title.text.contains("\n") {
                 // 積み重ね表示の行。グリフと両方の行を、メニューバーの高さに合わせた 1 枚の画像
                 // に描く。素の複数行 attributedTitle では下端に余白が残っていたが、自前で画像を
@@ -193,11 +199,11 @@ final class StatusItemController {
                 // 自身の severity で着色する。
                 let lines = BarTitleFormatter.allLines(from: model.snapshot, settings: settings)
                 button.attributedTitle = NSAttributedString(string: "")
-                button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: glyph, appearance: appearance)
+                button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: showIcon ? glyph : nil, appearance: appearance)
                 button.imagePosition = .imageOnly
             } else {
-                button.image = glyph
-                button.imagePosition = .imageLeading
+                button.image = showIcon ? glyph : nil
+                button.imagePosition = showIcon ? .imageLeading : .noImage
                 button.attributedTitle = Self.barLine(
                     title.text, severity: title.severity,
                     font: .monospacedDigitSystemFont(ofSize: 12, weight: .regular),

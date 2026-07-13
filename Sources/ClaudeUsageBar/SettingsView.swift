@@ -43,9 +43,13 @@ struct SettingsView: View {
 
             Section("Menu Bar") {
                 // ここにはプレビューを置かない。これらの変更に合わせて実際のメニューバーがリアルタイムに更新される。
-                // マスタートグルは .disabled のスコープの外に置かなければならない。さもないとオフにした時点で
-                // トグル自身が無効化され、二度とオンに戻せなくなる。
+                // 表示トグルは下の .disabled グループの外に置く。さもないとオフにした時点でトグル自身が
+                // 無効化され、二度とオンに戻せなくなる。テキストとアイコンは互いに「最後の 1 つ」を消せない
+                // よう相手が唯一の表示要素のときだけ無効化し、メニューバーが空になるのを防ぐ。
                 Toggle("Show text in menu bar", isOn: $settings.showBarText)
+                    .disabled(!settings.showBarIcon)
+                Toggle("Show icon in menu bar", isOn: $settings.showBarIcon)
+                    .disabled(!settings.showBarText)
 
                 Group {
                     Picker("Metric", selection: $settings.barMetric) {
