@@ -17,7 +17,7 @@ jobs:
       # If unset, the tap-update step is skipped and a warning is emitted.
       TAP_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Select latest Xcode
         uses: maxim-lobanov/setup-xcode@v1
