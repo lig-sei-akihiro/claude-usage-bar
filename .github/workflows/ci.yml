@@ -13,7 +13,7 @@ jobs:
   build-test:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # swift-testing (the `Testing` module) ships with Xcode 16+, so pin the
       # newest stable Xcode rather than relying on the runner's default.
