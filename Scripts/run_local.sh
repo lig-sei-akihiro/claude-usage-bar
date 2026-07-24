@@ -21,7 +21,9 @@ APP="dist/$APP_NAME.app"
 BIN_REL="$APP/Contents/MacOS/$APP_NAME"
 
 # 1) Build + package (package_app.sh honours $VERSION, keeping its default if unset).
-./Scripts/package_app.sh "$CONFIG"
+#    Local runs only need the host arch — skip the cross-arch slice package_app.sh
+#    would otherwise build for its universal (Apple Silicon + Intel) release binary.
+ARCHS="${ARCHS:-$(uname -m)}" ./Scripts/package_app.sh "$CONFIG"
 
 # 2) Quit any running instance so only the new build owns a status item. The pattern
 #    matches both the /Applications and dist/ copies (same executable path suffix).

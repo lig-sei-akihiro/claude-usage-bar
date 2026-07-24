@@ -15,17 +15,28 @@ BUNDLE_ID="com.lig-sei-akihiro.claude-usage-bar"
 # tag, e.g. v0.2.0 → 0.2.0). The fallback is only for local packaging.
 VERSION="${VERSION:-0.1.0}"
 
-echo "▸ Building ($CONFIG)…"
-swift build -c "$CONFIG" --product "$APP_NAME"
-BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
-BIN="$BIN_DIR/$APP_NAME"
-[ -x "$BIN" ] || { echo "✗ executable not found at $BIN" >&2; exit 1; }
+# Ship a universal binary so a single .app runs natively on both Apple Silicon
+# and Intel Macs. We build each slice with a single `--arch` (SwiftPM's native
+# build system, works with just Command Line Tools) and `lipo` them together —
+# passing multiple `--arch` at once would switch SwiftPM to xcbuild, which needs
+# a full Xcode install. Override with ARCHS="arm64" for a faster local build.
+ARCHS="${ARCHS:-arm64 x86_64}"
+
+SLICES=()
+for ARCH in $ARCHS; do
+    echo "▸ Building ($CONFIG, $ARCH)…"
+    swift build -c "$CONFIG" --product "$APP_NAME" --arch "$ARCH"
+    SLICE="$(swift build -c "$CONFIG" --arch "$ARCH" --show-bin-path)/$APP_NAME"
+    [ -x "$SLICE" ] || { echo "✗ executable not found at $SLICE" >&2; exit 1; }
+    SLICES+=("$SLICE")
+done
 
 APP="dist/$APP_NAME.app"
 echo "▸ Assembling ${APP}…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
+echo "▸ Combining ${#SLICES[@]} arch slice(s) into a universal binary…"
+lipo -create "${SLICES[@]}" -output "$APP/Contents/MacOS/$APP_NAME"
 
 ICNS="Assets/icon/AppIcon.icns"
 if [ -f "$ICNS" ]; then
@@ -59,6 +70,7 @@ echo "▸ Ad-hoc signing…"
 codesign --force --sign - "$APP"
 
 echo "✓ Built $APP"
+lipo -archs "$APP/Contents/MacOS/$APP_NAME" 2>/dev/null | sed 's/^/    archs: /' || true
 codesign -dv "$APP" 2>&1 | sed 's/^/    /' || true
 
 # Zip for Homebrew Cask distribution (ditto keeps the .app bundle intact).
