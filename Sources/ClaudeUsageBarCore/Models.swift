@@ -155,6 +155,19 @@ public struct BarTitle: Sendable, Equatable {
     public static let placeholder = BarTitle(text: "…", severity: .stale)
 }
 
+/// Clawd グリフ(メニューバーのアイコン、ポップオーバーのバッジ)が表す状態。色とゲージの塗りを
+/// 必ず同じウィンドウから導けるよう、1 つの値にまとめている。
+public struct BarIcon: Sendable, Equatable {
+    public var severity: BarSeverity
+    /// ゲージが満ちる割合(0...1)。表せるウィンドウがなければ nil。
+    public var fraction: Double?
+
+    public init(severity: BarSeverity, fraction: Double?) {
+        self.severity = severity
+        self.fraction = fraction
+    }
+}
+
 /// `.all` モードで積み重ねて表示するタイトルの 1 行。行ごとに深刻度を持たせ、メニューバー上で
 /// アカウント行を個別に色付けできるようにする。
 public struct StackedLine: Sendable, Equatable {
