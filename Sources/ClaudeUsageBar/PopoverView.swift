@@ -14,10 +14,7 @@ struct PopoverView: View {
             } else {
                 // スクロールしない — ポップオーバーは内容に合わせてサイズが決まる。
                 ForEach(model.snapshot.accounts) { account in
-                    AccountCard(account: account,
-                                basis: model.settings.percentBasis,
-                                warningAt: model.settings.warningThreshold,
-                                criticalAt: model.settings.criticalThreshold)
+                    AccountCard(account: account, settings: model.settings.displaySettings)
                 }
             }
 
@@ -76,9 +73,7 @@ struct PopoverView: View {
 /// 1アカウント分: email ＋ フォルダ、続けてエラーか usage window のいずれかを表示。
 private struct AccountCard: View {
     let account: AccountUsage
-    let basis: PercentBasis
-    let warningAt: Double
-    let criticalAt: Double
+    let settings: DisplaySettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -111,7 +106,7 @@ private struct AccountCard: View {
                 .foregroundStyle(SeverityColor.color(.error))
             } else {
                 ForEach(windows, id: \.kind) { window in
-                    WindowRow(window: window, basis: basis, warningAt: warningAt, criticalAt: criticalAt)
+                    WindowRow(window: window, settings: settings)
                 }
             }
         }
@@ -125,20 +120,13 @@ private struct AccountCard: View {
         [account.session, account.weeklyAll, account.weeklyFable].compactMap { $0 }
     }
 
-    /// このアカウントの Clawd: 共有パレット経由で最も逼迫した window の色（緑/アンバー/赤）で塗り、
-    /// ゲージはその window の使用量まで満たす。
+    /// このアカウントの Clawd: メニューバーのグリフと同じ規則（`BarTitleFormatter.icon`）で
+    /// 最も逼迫した window の色（緑/アンバー/赤）に塗り、ゲージはその window の使用量まで満たす。
+    /// 同じ規則を共有しているので、メニューバーが赤いのにポップオーバーのバッジは緑、という
+    /// 食い違いが起きない。
     private var badge: NSImage {
-        ClawdGlyph.badge(fraction: fraction, color: SeverityColor.ns(severity), height: 22)
-    }
-
-    private var severity: BarSeverity {
-        if account.hasError { return .error }
-        guard let window = account.mostConstrainedWindow else { return .stale }
-        return BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt)
-    }
-
-    private var fraction: Double? {
-        account.mostConstrainedWindow.map { $0.usedPercent / 100 }
+        let icon = BarTitleFormatter.icon(for: account, settings: settings)
+        return ClawdGlyph.badge(fraction: icon.fraction, color: SeverityColor.ns(icon.severity), height: 22)
     }
 }
 
@@ -147,12 +135,11 @@ private struct AccountCard: View {
 /// 1つの usage window: ラベル、塗りバー、パーセント、リセット時刻。
 private struct WindowRow: View {
     let window: RateWindow
-    let basis: PercentBasis
-    let warningAt: Double
-    let criticalAt: Double
+    let settings: DisplaySettings
 
     var body: some View {
-        let color = SeverityColor.color(BarTitleFormatter.windowSeverity(window, warningAt: warningAt, criticalAt: criticalAt))
+        let color = SeverityColor.color(BarTitleFormatter.windowSeverity(
+            window, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold))
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(window.label)
@@ -173,8 +160,9 @@ private struct WindowRow: View {
     }
 
     private var percentText: String {
-        let value = basis == .remaining ? window.remainingPercent : window.usedPercent
-        let word = basis == .remaining ? "remaining" : "used"
+        let remaining = settings.percentBasis == .remaining
+        let value = remaining ? window.remainingPercent : window.usedPercent
+        let word = remaining ? "remaining" : "used"
         return "\(Int(value.rounded()))% \(word)"
     }
 

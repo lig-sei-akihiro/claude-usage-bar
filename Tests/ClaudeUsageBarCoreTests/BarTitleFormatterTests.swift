@@ -162,6 +162,86 @@ struct BarTitleFormatterTests {
         #expect(out.severity == .error)
     }
 
+    // MARK: - アイコン (テキストとは別の集合を見る)
+
+    @Test func iconTracksWeeklyEvenWhenBarShowsSession() {
+        // バーは 5h を表示していても、Week(all) の枯渇でグリフは赤になる。
+        let acct = account("a@x", [win(.session, used: 20), win(.weeklyAll, used: 97)])
+        let settings = DisplaySettings(percentBasis: .used)
+
+        let title = BarTitleFormatter.make(from: snapshot([acct]), settings: settings)
+        #expect(title.text == "5h 20%")
+        #expect(title.severity == .normal)
+
+        let icon = BarTitleFormatter.icon(from: snapshot([acct]), settings: settings)
+        #expect(icon.severity == .critical)
+        // 色とゲージは同じウィンドウから来る。
+        #expect(icon.fraction == 0.97)
+    }
+
+    @Test func iconWarnsOnWeeklyBeforeCritical() {
+        let acct = account("a@x", [win(.session, used: 20), win(.weeklyAll, used: 88)])
+        let icon = BarTitleFormatter.icon(from: snapshot([acct]), settings: DisplaySettings(percentBasis: .used))
+        #expect(icon.severity == .warning)
+        #expect(icon.fraction == 0.88)
+    }
+
+    @Test func iconIgnoresWeeklyFableUnlessItIsTheMetric() {
+        let acct = account("a@x", [
+            win(.session, used: 20),
+            win(.weeklyAll, used: 30),
+            win(.weeklyScoped, used: 99, scope: "Fable"),
+        ])
+
+        // モデル単位の週次は既定では色を動かさない。
+        let bySession = BarTitleFormatter.icon(from: snapshot([acct]), settings: DisplaySettings(percentBasis: .used))
+        #expect(bySession.severity == .normal)
+        #expect(bySession.fraction == 0.30)
+
+        // metric として明示的に選ばれたら候補に入る (バーの数値より薄い色にはならない)。
+        let byFable = BarTitleFormatter.icon(
+            from: snapshot([acct]), settings: DisplaySettings(barMetric: .weeklyFable, percentBasis: .used))
+        #expect(byFable.severity == .critical)
+        #expect(byFable.fraction == 0.99)
+    }
+
+    @Test func iconKeepsServerWarningOverHigherUsage() {
+        // 候補は深刻度で先に比べる。使用率が低くてもサーバーの warning フラグが勝つ。
+        let acct = account("a@x", [win(.session, used: 50), win(.weeklyAll, used: 10, severity: "warning")])
+        let icon = BarTitleFormatter.icon(from: snapshot([acct]), settings: DisplaySettings(percentBasis: .used))
+        #expect(icon.severity == .warning)
+        #expect(icon.fraction == 0.10)
+    }
+
+    @Test func iconTakesWorstAccountInAllMode() {
+        let a = account("a@x", [win(.session, used: 20)], folders: ["main"])
+        let b = account("b@x", [win(.session, used: 30), win(.weeklyAll, used: 96)], folders: ["sub"])
+        let icon = BarTitleFormatter.icon(
+            from: snapshot([a, b]), settings: DisplaySettings(percentBasis: .used, accountMode: .all))
+        #expect(icon.severity == .critical)
+        #expect(icon.fraction == 0.96)
+    }
+
+    @Test func iconFollowsThePinnedAccountOnly() {
+        let pinned = account("pinme@x", [win(.session, used: 20), win(.weeklyAll, used: 30)])
+        let busy = account("busy@x", [win(.weeklyAll, used: 99)])
+        let icon = BarTitleFormatter.icon(
+            from: snapshot([pinned, busy]),
+            settings: DisplaySettings(percentBasis: .used, accountMode: .pinned, pinnedEmail: "pinme@x"))
+        #expect(icon.severity == .normal)
+        #expect(icon.fraction == 0.30)
+    }
+
+    @Test func iconIsErrorOrStaleWithoutData() {
+        let errored = BarTitleFormatter.icon(
+            from: snapshot([account("a@x", [], error: "auth expired")]), settings: .default)
+        #expect(errored.severity == .error)
+
+        let empty = BarTitleFormatter.icon(from: .empty, settings: .default)
+        #expect(empty.severity == .stale)
+        #expect(empty.fraction == nil)
+    }
+
     // MARK: - リセットのカウントダウン
 
     @Test func resetCountdownSuffix() {

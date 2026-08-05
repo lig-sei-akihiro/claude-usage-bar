@@ -178,11 +178,13 @@ final class StatusItemController {
         let appearance = button.effectiveAppearance
 
         // Clawd(マスコット)とミニ使用量ゲージが常にステータスアイテムの先頭に立ち、アプリ
-        // アイコンと呼応する。共有パレットの(最も深刻な)severity で着色し、ゲージはライブの
-        // 使用量まで満ちる。
+        // アイコンと呼応する。色とゲージはテキストの metric ではなく `BarTitleFormatter.icon`
+        // が選ぶ「最も逼迫したウィンドウ」に従うので、バーが "5h 20%" のままでも週次の枯渇で
+        // オレンジ/赤になる。
+        let icon = BarTitleFormatter.icon(from: model.snapshot, settings: settings)
         let glyph = ClawdGlyph.image(
-            fraction: BarTitleFormatter.representativeFraction(from: model.snapshot, settings: settings),
-            color: SeverityColor.ns(title.severity).resolved(for: appearance))
+            fraction: icon.fraction,
+            color: SeverityColor.ns(icon.severity).resolved(for: appearance))
         button.contentTintColor = nil
 
         let hasText = settings.showBarText && !title.text.isEmpty

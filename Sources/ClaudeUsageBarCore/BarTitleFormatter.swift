@@ -14,6 +14,8 @@ import Foundation
 /// - 深刻度: 表示中アカウントがエラーなら `.error`。使用率が `settings.criticalThreshold` 以上なら
 ///   `.critical`。severity=="warning" か使用率が `settings.warningThreshold` 以上なら `.warning`。
 ///   まだデータがなければ `.stale`。いずれでもなければ `.normal`。
+/// - **テキストの深刻度は `barMetric` のウィンドウだけを見る**（"5h 20%" が赤くなってはならない）。
+///   グリフの色は別で、`icon(from:settings:)` が 5h と Week(all) も併せて見る。
 public enum BarTitleFormatter {
     /// ステータス項目に描画する単一のタイトルを組み立てる。
     public static func make(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> BarTitle {
@@ -57,20 +59,52 @@ public enum BarTitleFormatter {
         }
     }
 
-    /// バーのゲージが表す使用済み割合（0...1）。表示中アカウントについて `barMetric` が選んだ
-    /// ウィンドウの値、または `.all` モードでは全アカウント中の最悪値（最大）。使えるウィンドウが
-    /// なければ `nil`。メニューバーのグリフとポップオーバーのヘッダーバッジが同じ値を追えるよう、
-    /// 両者で共有する。
-    public static func representativeFraction(from snapshot: UsageSnapshot, settings: DisplaySettings) -> Double? {
-        if settings.accountMode == .all {
-            return snapshot.accounts
-                .compactMap { pickWindow(for: $0, metric: settings.barMetric)?.usedPercent }
-                .max()
-                .map { $0 / 100 }
+    /// Clawd グリフの状態(色とゲージの塗り)。バーが代表するアカウント、`.all` モードでは
+    /// 全アカウントを横断した最悪値をとる。メニューバーのグリフとポップオーバーのヘッダー
+    /// バッジが同じ規則で色付くよう、両者で共有する。
+    ///
+    /// **バーのテキストとは別の集合を見る**。テキストは `barMetric` のウィンドウだけを表すが、
+    /// アイコンは `iconWindow` の規則で 5h と Week(all) も併せて見るため、テキストが "5h 20%"
+    /// でも週次が枯渇しかけていればオレンジ/赤になる。
+    public static func icon(from snapshot: UsageSnapshot, settings: DisplaySettings) -> BarIcon {
+        let accounts = settings.accountMode == .all
+            ? snapshot.accounts
+            : selectedAccount(from: snapshot, settings: settings).map { [$0] } ?? []
+        let icons = accounts.map { icon(for: $0, settings: settings) }
+        guard !icons.isEmpty else { return BarIcon(severity: .stale, fraction: nil) }
+        return BarIcon(
+            severity: icons.map(\.severity).reduce(BarSeverity.normal, worseOf),
+            fraction: icons.compactMap(\.fraction).max())
+    }
+
+    /// アカウント 1 件ぶんのグリフ状態。ポップオーバーのアカウントカードが自分のバッジに使う。
+    public static func icon(for account: AccountUsage, settings: DisplaySettings) -> BarIcon {
+        let window = iconWindow(for: account, settings: settings)
+        let fraction = window.map { $0.usedPercent / 100 }
+        if account.hasError { return BarIcon(severity: .error, fraction: fraction) }
+        guard let window else { return BarIcon(severity: .stale, fraction: nil) }
+        return BarIcon(
+            severity: windowSeverity(window, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold),
+            fraction: fraction)
+    }
+
+    /// グリフが代表するウィンドウ。候補は `barMetric` のウィンドウに加え、**常に** 5h と
+    /// Week(all)。バーが 5h を表示していても週次の枯渇を見逃さないためであり、これがアイコンの
+    /// 色をテキストの色と切り離す唯一の理由でもある。Week(Fable) はモデル単位の制限なので、
+    /// metric として明示的に選ばれたときだけ候補に入る。
+    ///
+    /// 候補のうち最も逼迫した **1 つ** を返す — 深刻度で比べ、同じなら使用率が高い方。色もゲージも
+    /// この 1 つのウィンドウから決めることで、「赤いのにゲージが空」という食い違いが起きない。
+    public static func iconWindow(for account: AccountUsage, settings: DisplaySettings) -> RateWindow? {
+        var candidates = [account.session, account.weeklyAll].compactMap { $0 }
+        if let metric = pickWindow(for: account, metric: settings.barMetric), !candidates.contains(metric) {
+            candidates.append(metric)
         }
-        guard let account = selectedAccount(from: snapshot, settings: settings),
-              let window = pickWindow(for: account, metric: settings.barMetric) else { return nil }
-        return window.usedPercent / 100
+        return candidates.max { a, b in
+            let ra = rank(windowSeverity(a, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold))
+            let rb = rank(windowSeverity(b, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold))
+            return ra == rb ? a.usedPercent < b.usedPercent : ra < rb
+        }
     }
 
     // MARK: - 内部
@@ -82,9 +116,8 @@ public enum BarTitleFormatter {
         let lines = allLines(from: snapshot, settings: settings, now: now)
         guard !lines.isEmpty else { return BarTitle(text: "", severity: .stale) }
 
-        // 深刻度は表示する（最大 2 行の）行だけでなく全アカウントにわたって評価する。これにより
-        // `representativeFraction` と同じ集合を追う。表示されていない高使用率のアカウントがあっても、
-        // グリフの色をゲージの塗りに合わせられる。
+        // 深刻度は表示する（最大 2 行の）行だけでなく全アカウントにわたって評価する。表示されて
+        // いない高使用率のアカウントがあっても、タイトル全体の深刻度がそれを取りこぼさない。
         let worst = snapshot.accounts
             .map { severity(account: $0, window: pickWindow(for: $0, metric: settings.barMetric), settings: settings) }
             .reduce(BarSeverity.normal, worseOf)
