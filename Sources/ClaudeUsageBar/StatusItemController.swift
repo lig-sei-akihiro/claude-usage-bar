@@ -15,9 +15,12 @@ final class StatusItemController {
     private var refreshTimer: Timer?
     private var settingsCancellable: AnyCancellable?
     private var isRefreshing = false
+    private var pendingRefresh = false
+    private var currentSource: UsageSourceKind
 
     init(model: AppModel) {
         self.model = model
+        self.currentSource = model.settings.usageSource
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         self.popover = NSPopover()
@@ -41,11 +44,20 @@ final class StatusItemController {
         model.quitAction = { NSApp.terminate(nil) }
 
         // 表示/更新のオプションが変わったら、タイトルを再描画してタイマーを組み直す。
+        // `objectWillChange` は値が変わる *前* に発火するので、`receive(on:)` のホップが
+        // 無いと下の比較が古い値を読む。
         settingsCancellable = model.settings.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] in
-                self?.updateBar()
-                self?.scheduleTimer()
+                guard let self else { return }
+                if self.model.settings.usageSource != self.currentSource {
+                    self.currentSource = self.model.settings.usageSource
+                    // 消さずに再取得すると `retainingWindows(from:)` が前の情報源のアカウントを引き継ぐ。
+                    self.model.snapshot = .empty
+                    self.refresh()
+                }
+                self.updateBar()
+                self.scheduleTimer()
             }
 
         updateBar()
@@ -135,16 +147,27 @@ final class StatusItemController {
     // MARK: 更新
 
     private func refresh() {
-        guard !isRefreshing else { return }
+        // 落とすと、情報源の切り替えが走行中のリフレッシュと重なったとき `manual` では二度と取得されない。
+        guard !isRefreshing else { pendingRefresh = true; return }
+        let source = model.settings.usageSource
         isRefreshing = true
         model.isRefreshing = true
         Task { @MainActor in
-            let fresh = await UsageService().snapshot()
-            // 一時的にエラーになっただけのアカウントについては、直近の既知の値を保持する。
-            model.snapshot = fresh.retainingWindows(from: model.snapshot)
-            model.isRefreshing = false
+            let fresh = await UsageService(source).snapshot()
+            // 解除は照合より前。後ろだと情報源が切り替わったときフラグが立ったまま戻らない。
             isRefreshing = false
-            updateBar()
+            model.isRefreshing = false
+
+            let matched = source == model.settings.usageSource
+            if matched {
+                // 一時的にエラーになっただけのアカウントについては、直近の既知の値を保持する。
+                model.snapshot = fresh.retainingWindows(from: model.snapshot)
+                updateBar()
+            }
+            if pendingRefresh || !matched {
+                pendingRefresh = false
+                refresh()
+            }
         }
     }
 

@@ -419,4 +419,66 @@ struct BarTitleFormatterTests {
         #expect(out.text == "")
         #expect(BarTitleFormatter.selectedAccount(from: .empty, settings: .default) == nil)
     }
+
+    @Test func sourceErrorWithoutAccountsIsError() {
+        let snapshot = UsageSnapshot(accounts: [], generatedAt: Date(), sourceError: "teamclaude: bad response")
+        let out = BarTitleFormatter.make(from: snapshot, settings: .default)
+        #expect(out.severity == .error)
+        #expect(out.text == "")
+
+        let icon = BarTitleFormatter.icon(from: snapshot, settings: .default)
+        #expect(icon.severity == .error)
+        #expect(icon.fraction == nil)
+    }
+
+    @Test func sourceErrorWithoutAccountsIsErrorInAllMode() {
+        let settings = DisplaySettings(accountMode: .all)
+        let failed = UsageSnapshot(accounts: [], generatedAt: Date(), sourceError: "teamclaude: bad response")
+
+        let out = BarTitleFormatter.make(from: failed, settings: settings)
+        #expect(out.severity == .error)
+        #expect(out.text == "")
+        #expect(BarTitleFormatter.icon(from: failed, settings: settings).severity == .error)
+
+        #expect(BarTitleFormatter.make(from: .empty, settings: settings).severity == .stale)
+    }
+
+    @Test func sourceErrorWithAccountsKeepsDataSeverity() {
+        let snapshot = UsageSnapshot(
+            accounts: [account("a@x", [win(.session, used: 97)])],
+            generatedAt: Date(),
+            sourceError: "teamclaude: 1 account unreadable")
+        #expect(BarTitleFormatter.make(from: snapshot, settings: .default).severity == .critical)
+        #expect(BarTitleFormatter.icon(from: snapshot, settings: .default).severity == .critical)
+    }
+
+    @Test func retainingWindowsCarriesWholeSnapshotOnSourceError() {
+        let previous = UsageSnapshot(
+            accounts: [account("a@x", [win(.session, used: 40)])],
+            generatedAt: Date(timeIntervalSince1970: 100))
+        let fresh = UsageSnapshot(
+            accounts: [], generatedAt: Date(timeIntervalSince1970: 200),
+            sourceError: "teamclaude not reachable on port 3456")
+
+        let merged = fresh.retainingWindows(from: previous)
+        #expect(merged.accounts.count == 1)
+        #expect(merged.accounts.first?.session?.usedPercent == 40)
+        #expect(merged.generatedAt == Date(timeIntervalSince1970: 100))
+        #expect(merged.sourceError == "teamclaude not reachable on port 3456")
+    }
+
+    @Test func retainingWindowsIgnoresSourceErrorWhenAccountsPresent() {
+        let previous = UsageSnapshot(
+            accounts: [account("a@x", [win(.session, used: 40)])],
+            generatedAt: Date(timeIntervalSince1970: 100))
+        let fresh = UsageSnapshot(
+            accounts: [account("a@x", [win(.session, used: 55)])],
+            generatedAt: Date(timeIntervalSince1970: 200),
+            sourceError: "teamclaude: 1 account unreadable")
+
+        let merged = fresh.retainingWindows(from: previous)
+        #expect(merged.accounts.first?.session?.usedPercent == 55)
+        #expect(merged.generatedAt == Date(timeIntervalSince1970: 200))
+        #expect(merged.sourceError == "teamclaude: 1 account unreadable")
+    }
 }
