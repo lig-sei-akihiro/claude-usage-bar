@@ -24,7 +24,7 @@ public enum BarTitleFormatter {
         }
 
         guard let account = selectedAccount(from: snapshot, settings: settings) else {
-            return BarTitle(text: "", severity: .stale)
+            return BarTitle(text: "", severity: snapshot.sourceError == nil ? .stale : .error)
         }
 
         let window = pickWindow(for: account, metric: settings.barMetric)
@@ -71,7 +71,9 @@ public enum BarTitleFormatter {
             ? snapshot.accounts
             : selectedAccount(from: snapshot, settings: settings).map { [$0] } ?? []
         let icons = accounts.map { icon(for: $0, settings: settings) }
-        guard !icons.isEmpty else { return BarIcon(severity: .stale, fraction: nil) }
+        guard !icons.isEmpty else {
+            return BarIcon(severity: snapshot.sourceError == nil ? .stale : .error, fraction: nil)
+        }
         return BarIcon(
             severity: icons.map(\.severity).reduce(BarSeverity.normal, worseOf),
             fraction: icons.compactMap(\.fraction).max())
@@ -114,7 +116,9 @@ public enum BarTitleFormatter {
     /// "\n" で連結する。
     private static func makeAll(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date) -> BarTitle {
         let lines = allLines(from: snapshot, settings: settings, now: now)
-        guard !lines.isEmpty else { return BarTitle(text: "", severity: .stale) }
+        guard !lines.isEmpty else {
+            return BarTitle(text: "", severity: snapshot.sourceError == nil ? .stale : .error)
+        }
 
         // 深刻度は表示する（最大 2 行の）行だけでなく全アカウントにわたって評価する。表示されて
         // いない高使用率のアカウントがあっても、タイトル全体の深刻度がそれを取りこぼさない。

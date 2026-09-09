@@ -41,6 +41,7 @@ final class SettingsStore: ObservableObject {
         static let accountMode = "accountMode"
         static let pinnedEmail = "pinnedEmail"
         static let refreshInterval = "refreshInterval"
+        static let usageSource = "usageSource"
         static let warningThreshold = "warningThreshold"
         static let criticalThreshold = "criticalThreshold"
     }
@@ -59,6 +60,8 @@ final class SettingsStore: ObservableObject {
     @Published var showMetricLabel: Bool { didSet { defaults.set(showMetricLabel, forKey: Key.showMetricLabel) } }
     @Published var accountMode: AccountBarMode { didSet { defaults.set(accountMode.rawValue, forKey: Key.accountMode) } }
     @Published var pinnedEmail: String? { didSet { defaults.set(pinnedEmail, forKey: Key.pinnedEmail) } }
+    /// 情報源。どこから取るかは整形の契約ではないので Core の `DisplaySettings` には持たせない。
+    @Published var usageSource: UsageSourceKind { didSet { defaults.set(usageSource.rawValue, forKey: Key.usageSource) } }
 
     /// 深刻度の色付けに使う使用率のしきい値。妥当性 (1...99、critical ≥ warning + 1) は
     /// `ThresholdSlider` が保証する。これらの setter は永続化だけを行う。
@@ -88,6 +91,7 @@ final class SettingsStore: ObservableObject {
         self.accountMode = (defaults.string(forKey: Key.accountMode).flatMap(AccountBarMode.init(rawValue:))) ?? d.accountMode
         self.pinnedEmail = defaults.string(forKey: Key.pinnedEmail)
         self.refreshInterval = RefreshInterval(rawValue: defaults.object(forKey: Key.refreshInterval) as? Int ?? RefreshInterval.twoMinutes.rawValue) ?? .twoMinutes
+        self.usageSource = (defaults.string(forKey: Key.usageSource).flatMap(UsageSourceKind.init(rawValue:))) ?? .local
 
         // 永続化したしきい値を妥当な範囲と順序にクランプし、破損値や旧バージョンの値によって
         // スライダー（や色付け）が不正な状態に陥らないようにする:
@@ -111,6 +115,13 @@ final class SettingsStore: ObservableObject {
         criticalThreshold = DisplaySettings.default.criticalThreshold
     }
 
+    /// teamclaude のプールはローテーションするので `.active` に意味が薄い。永続値は書き換えず
+    /// 読み替えるだけにして、情報源を `.local` に戻したら元の選択に戻るようにする。
+    var effectiveAccountMode: AccountBarMode {
+        if usageSource == .teamclaude, accountMode == .active { return .all }
+        return accountMode
+    }
+
     /// formatter が使う Core の値型。
     var displaySettings: DisplaySettings {
         DisplaySettings(
@@ -120,7 +131,7 @@ final class SettingsStore: ObservableObject {
             resetDisplay: resetDisplay,
             showPercentSign: showPercentSign,
             showMetricLabel: showMetricLabel,
-            accountMode: accountMode,
+            accountMode: effectiveAccountMode,
             pinnedEmail: pinnedEmail,
             warningThreshold: warningThreshold,
             criticalThreshold: criticalThreshold

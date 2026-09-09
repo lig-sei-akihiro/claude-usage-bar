@@ -103,10 +103,13 @@ public struct AccountUsage: Sendable, Equatable, Codable, Identifiable {
 public struct UsageSnapshot: Sendable, Equatable, Codable {
     public var accounts: [AccountUsage]
     public var generatedAt: Date
+    /// 情報源そのものに到達できない/読めない場合に非 nil。`AccountUsage.error` とは別の層。
+    public var sourceError: String?
 
-    public init(accounts: [AccountUsage], generatedAt: Date) {
+    public init(accounts: [AccountUsage], generatedAt: Date, sourceError: String? = nil) {
         self.accounts = accounts
         self.generatedAt = generatedAt
+        self.sourceError = sourceError
     }
 
     public static let empty = UsageSnapshot(accounts: [], generatedAt: .distantPast)
@@ -115,6 +118,12 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
     /// 直近既知のウィンドウを引き継ぐ。これにより一過性の不調でバーが "?" に化けないようにする。
     /// 一度もデータを持っていないアカウントはエラーのまま残す。
     public func retainingWindows(from previous: UsageSnapshot) -> UsageSnapshot {
+        // `generatedAt` も前回のものにする。now を入れると古い値に新しい観測時刻が付く。
+        if sourceError != nil, accounts.isEmpty, !previous.accounts.isEmpty {
+            return UsageSnapshot(accounts: previous.accounts,
+                                 generatedAt: previous.generatedAt,
+                                 sourceError: sourceError)
+        }
         let merged = accounts.map { acc -> AccountUsage in
             guard acc.hasError, acc.windows.isEmpty,
                   let prev = previous.accounts.first(where: { $0.email == acc.email }),
@@ -124,7 +133,7 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
                 email: acc.email, folders: acc.folders, windows: prev.windows,
                 error: nil, fetchedAt: prev.fetchedAt)
         }
-        return UsageSnapshot(accounts: merged, generatedAt: generatedAt)
+        return UsageSnapshot(accounts: merged, generatedAt: generatedAt, sourceError: sourceError)
     }
 }
 

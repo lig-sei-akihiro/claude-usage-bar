@@ -10,6 +10,8 @@ struct SettingsView: View {
     var accounts: [AccountUsage] = []
     /// システムの login-item の状態 (UserDefault ではなく SMAppService が保持する)。開いた時点で初期値を入れる。
     @State private var launchAtLogin = LoginItem.isEnabled
+    /// `body` の再評価ごとに設定ファイルを読まないよう 1 度だけ解決する。
+    @State private var teamclaudePort = TeamclaudeConfig.defaultPort
 
     var body: some View {
         Form {
@@ -39,6 +41,16 @@ struct SettingsView: View {
                     .onChange(of: launchAtLogin) { _, newValue in
                         LoginItem.setEnabled(newValue)
                     }
+            }
+
+            Section("Usage Source") {
+                Picker("Source", selection: $settings.usageSource) {
+                    Text("Claude Code config folders").tag(UsageSourceKind.local)
+                    Text("teamclaude pool").tag(UsageSourceKind.teamclaude)
+                }
+                Text(sourceCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Menu Bar") {
@@ -90,12 +102,19 @@ struct SettingsView: View {
             }
 
             Section("Accounts") {
-                Picker("Account", selection: $settings.accountMode) {
-                    Text("Active (most constrained)").tag(AccountBarMode.active)
+                Picker("Account", selection: accountModeSelection) {
+                    if settings.usageSource == .local {
+                        Text("Active (most constrained)").tag(AccountBarMode.active)
+                    }
                     Text("Pinned account").tag(AccountBarMode.pinned)
                     Text("All accounts").tag(AccountBarMode.all)
                 }
-                if settings.accountMode == .all {
+                if settings.usageSource == .teamclaude {
+                    Text("The pool rotates accounts, so a single most-constrained account is not shown. All accounts is used instead.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if settings.effectiveAccountMode == .all {
                     Text("Stacks each account on its own line in the menu bar (max 2).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -120,6 +139,23 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 380)
+        .onAppear { teamclaudePort = TeamclaudeConfig.resolvePort() }
+    }
+
+    /// teamclaude 選択中は `.active` の行が無い。永続値のまま束縛すると選択なしになる。
+    private var accountModeSelection: Binding<AccountBarMode> {
+        Binding(
+            get: { settings.effectiveAccountMode },
+            set: { settings.accountMode = $0 })
+    }
+
+    private var sourceCaption: String {
+        switch settings.usageSource {
+        case .local:
+            return "Reads ~/.claude* config folders and the login keychain."
+        case .teamclaude:
+            return "Reads http://127.0.0.1:\(teamclaudePort)/teamclaude/quota. Needs teamclaude 1.1.17 or newer, running."
+        }
     }
 
     /// バンドルのマーケティングバージョン (`CFBundleShortVersionString`)。`Scripts/package_app.sh` が

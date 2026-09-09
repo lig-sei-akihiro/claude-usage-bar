@@ -9,8 +9,12 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let sourceError = model.snapshot.sourceError {
+                sourceBanner(sourceError)
+            }
+
             if model.snapshot.accounts.isEmpty {
-                emptyState
+                if model.snapshot.sourceError == nil { emptyState }
             } else {
                 // スクロールしない — ポップオーバーは内容に合わせてサイズが決まる。
                 ForEach(model.snapshot.accounts) { account in
@@ -26,12 +30,23 @@ struct PopoverView: View {
         .frame(width: 340)
     }
 
+    private func sourceBanner(_ message: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(message)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.caption)
+        .foregroundStyle(SeverityColor.color(.error))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "person.crop.circle.badge.questionmark")
                 .font(.title2)
                 .foregroundStyle(.secondary)
-            Text("No Claude Code accounts found")
+            Text("No accounts found")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -104,6 +119,10 @@ private struct AccountCard: View {
                 }
                 .font(.caption)
                 .foregroundStyle(SeverityColor.color(.error))
+            } else if windows.isEmpty {
+                Text("No usage data yet")
+                    .font(.caption)
+                    .foregroundStyle(SeverityColor.color(.stale))
             } else {
                 ForEach(windows, id: \.kind) { window in
                     WindowRow(window: window, settings: settings)
