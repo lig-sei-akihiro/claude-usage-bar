@@ -38,13 +38,14 @@ public struct TeamclaudeUsageSource: UsageSource {
         }
 
         guard result.unreadable > 0 else {
-            return UsageSnapshot(accounts: result.accounts, generatedAt: now)
+            return UsageSnapshot(accounts: result.accounts, generatedAt: now, pool: result.pool)
         }
         let noun = result.unreadable == 1 ? "account" : "accounts"
         return UsageSnapshot(
             accounts: result.accounts,
             generatedAt: now,
-            sourceError: "teamclaude: \(result.unreadable) \(noun) unreadable")
+            sourceError: "teamclaude: \(result.unreadable) \(noun) unreadable",
+            pool: result.pool)
     }
 
     private func failure(_ message: String, now: Date) -> UsageSnapshot {

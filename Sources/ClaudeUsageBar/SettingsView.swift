@@ -69,6 +69,19 @@ struct SettingsView: View {
                             Text(Self.label(for: metric)).tag(metric)
                         }
                     }
+                    Picker("Second metric", selection: $settings.secondaryMetric) {
+                        Text("None").tag(BarMetric?.none)
+                        ForEach(BarMetric.allCases.filter { $0 != settings.barMetric }, id: \.self) { metric in
+                            Text(Self.label(for: metric)).tag(BarMetric?.some(metric))
+                        }
+                    }
+                    .disabled(settings.effectiveAccountMode == .all)
+                    if settings.secondaryMetric != nil, settings.secondaryMetric != settings.barMetric,
+                       settings.effectiveAccountMode != .all {
+                        Text("Stacks both metrics on two lines, each with its label. Not used with All accounts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Picker("Show", selection: $settings.percentBasis) {
                         Text("Remaining").tag(PercentBasis.remaining)
                         Text("Used").tag(PercentBasis.used)
@@ -105,12 +118,14 @@ struct SettingsView: View {
                 Picker("Account", selection: accountModeSelection) {
                     if settings.usageSource == .local {
                         Text("Active (most constrained)").tag(AccountBarMode.active)
+                    } else {
+                        Text("Pool total").tag(AccountBarMode.pool)
                     }
                     Text("Pinned account").tag(AccountBarMode.pinned)
                     Text("All accounts").tag(AccountBarMode.all)
                 }
-                if settings.usageSource == .teamclaude {
-                    Text("The pool rotates accounts, so a single most-constrained account is not shown. All accounts is used instead.")
+                if settings.effectiveAccountMode == .pool {
+                    Text("The whole pool as one figure, each account counted up to its cap. Matches /usage in Claude Code. Needs the teamclaude pool patch; without it the most constrained account is shown.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

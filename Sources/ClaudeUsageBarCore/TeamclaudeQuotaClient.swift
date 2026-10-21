@@ -9,11 +9,14 @@ enum TeamclaudeError: Error, Sendable, Equatable {
 struct QuotaResult: Sendable, Equatable {
     let accounts: [AccountUsage]
     let unreadable: Int
+    var pool: AccountUsage? = nil
 }
 
 /// `weeklySonnet` は写さない。実測で `source` が `unified7d`、つまり Sonnet 固有ではなく
 /// 共通週次の流用であり、Week (Sonnet) として見せると嘘になる。
 enum TeamclaudeQuotaClient {
+    static let poolName = "Pool total"
+
     // teamclaude 自身が HTTP プロキシなので、127.0.0.1 宛がシステムのプロキシ設定経由で
     // 回り込むのを断つ。2 秒で切るのはリフレッシュがバーの更新を止めないため。
     static let session: URLSession = {
@@ -54,6 +57,8 @@ enum TeamclaudeQuotaClient {
     // フィールドは例外なく optional にして、キーの追加で decode が壊れないようにする。
     private struct Root: Decodable {
         let accounts: [Failable<Account>]?
+        /// 上流の `aggregate` はキャップを無視するので読まない。`pool` はローカルパッチの追加分。
+        let pool: Failable<Buckets>?
     }
 
     private struct Account: Decodable {
@@ -108,7 +113,10 @@ enum TeamclaudeQuotaClient {
                 error: nil,
                 fetchedAt: now))
         }
-        return QuotaResult(accounts: accounts, unreadable: unreadable)
+        let poolWindows = windows(from: decoded.pool?.value)
+        let pool = poolWindows.isEmpty ? nil
+            : AccountUsage(email: poolName, folders: [], windows: poolWindows, error: nil, fetchedAt: now)
+        return QuotaResult(accounts: accounts, unreadable: unreadable, pool: pool)
     }
 
     private static func windows(from buckets: Buckets?) -> [RateWindow] {

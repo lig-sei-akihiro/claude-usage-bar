@@ -41,6 +41,8 @@ public enum AccountBarMode: String, Sendable, CaseIterable, Codable {
     case pinned
     /// 全アカウントを " | " 区切りでコンパクトに表示する。
     case all
+    /// teamclaude のプール合算 (`UsageSnapshot.pool`) を表示する。合算が無ければ active と同じ。
+    case pool
 }
 
 /// バータイトルがパーセントの後ろに(あれば)どのリセット情報を付加するか。
@@ -58,6 +60,9 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
     /// バーテキストのマスタートグル。false のときはアイコンのみ表示する。
     public var showBarText: Bool
     public var barMetric: BarMetric
+    /// 1 アカウント表示のとき、`barMetric` の下に 2 行目として積むウィンドウ。nil か
+    /// `barMetric` と同じなら 1 行のまま。`.all` モードでは使わない。
+    public var secondaryMetric: BarMetric?
     public var percentBasis: PercentBasis
     /// リセット情報をバーに付加するか/どう付加するか(要件: リセット時刻も表示すること)。
     public var resetDisplay: ResetDisplay
@@ -77,6 +82,7 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
     public init(
         showBarText: Bool = true,
         barMetric: BarMetric = .session,
+        secondaryMetric: BarMetric? = nil,
         percentBasis: PercentBasis = .used,
         resetDisplay: ResetDisplay = .none,
         showPercentSign: Bool = true,
@@ -88,6 +94,7 @@ public struct DisplaySettings: Sendable, Equatable, Codable {
     ) {
         self.showBarText = showBarText
         self.barMetric = barMetric
+        self.secondaryMetric = secondaryMetric
         self.percentBasis = percentBasis
         self.resetDisplay = resetDisplay
         self.showPercentSign = showPercentSign
