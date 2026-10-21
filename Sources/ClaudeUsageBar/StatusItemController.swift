@@ -222,7 +222,7 @@ final class StatusItemController {
                 // に描く。素の複数行 attributedTitle では下端に余白が残っていたが、自前で画像を
                 // 描くことでそれを取り除き、フォントを大きくできる。各行のパーセンテージはその行
                 // 自身の severity で着色する。
-                let lines = BarTitleFormatter.allLines(from: model.snapshot, settings: settings)
+                let lines = BarTitleFormatter.stackedLines(from: model.snapshot, settings: settings)
                 button.attributedTitle = NSAttributedString(string: "")
                 button.image = Self.stackedTitleImage(lines: lines, leadingGlyph: showIcon ? glyph : nil, appearance: appearance)
                 button.imagePosition = .imageOnly

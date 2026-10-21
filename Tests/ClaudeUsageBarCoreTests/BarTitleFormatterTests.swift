@@ -499,4 +499,30 @@ struct BarTitleFormatterTests {
         let failed = UsageSnapshot(accounts: [], generatedAt: Date(timeIntervalSince1970: 200), sourceError: "down")
         #expect(failed.retainingWindows(from: previous).pool == pool)
     }
+
+    @Test func secondaryMetricStacksTwoLabelledLinesWithTheirOwnSeverity() {
+        let acc = account("a@x", [win(.session, used: 5), win(.weeklyAll, used: 96)])
+        let settings = DisplaySettings(secondaryMetric: .weeklyAll, showMetricLabel: false)
+        let title = BarTitleFormatter.make(from: snapshot([acc]), settings: settings)
+        #expect(title.text == "5h 5%\nW 96%")
+        #expect(title.severity == .critical)
+        let lines = BarTitleFormatter.stackedLines(from: snapshot([acc]), settings: settings)
+        #expect(lines.map(\.severity) == [.normal, .critical])
+    }
+
+    @Test func secondaryMetricIsIgnoredWhenSameAsPrimaryOrInAllMode() {
+        let acc = account("a@x", [win(.session, used: 5), win(.weeklyAll, used: 60)])
+        let same = DisplaySettings(secondaryMetric: .session, showMetricLabel: false)
+        #expect(BarTitleFormatter.make(from: snapshot([acc]), settings: same).text == "5%")
+        #expect(BarTitleFormatter.stackedLines(from: snapshot([acc]), settings: same).isEmpty)
+        let all = DisplaySettings(secondaryMetric: .weeklyAll, showMetricLabel: false, accountMode: .all)
+        #expect(BarTitleFormatter.stackedLines(from: snapshot([acc]), settings: all).count == 1)
+    }
+
+    @Test func secondaryMetricFeedsTheIcon() {
+        let acc = account("a@x", [win(.session, used: 5), win(.weeklyAll, used: 10),
+                                  win(.weeklyScoped, used: 97, scope: "Fable")])
+        let settings = DisplaySettings(secondaryMetric: .weeklyFable)
+        #expect(BarTitleFormatter.icon(from: snapshot([acc]), settings: settings).severity == .critical)
+    }
 }

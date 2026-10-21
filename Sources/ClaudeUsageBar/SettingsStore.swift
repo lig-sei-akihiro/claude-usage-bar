@@ -33,6 +33,7 @@ final class SettingsStore: ObservableObject {
         static let showBarText = "showBarText"
         static let showBarIcon = "showBarIcon"
         static let barMetric = "barMetric"
+        static let secondaryMetric = "secondaryMetric"
         static let percentBasis = "percentBasis"
         static let showResetCountdown = "showResetCountdown"
         static let showPercentSign = "showPercentSign"
@@ -53,7 +54,14 @@ final class SettingsStore: ObservableObject {
     /// 両方を消すとステータスアイテムが空になるため、UI/描画の双方で少なくとも一方は残す。
     /// グリフ描画は App レイヤー専任のため、Core の `DisplaySettings` には持たせない。
     @Published var showBarIcon: Bool { didSet { defaults.set(showBarIcon, forKey: Key.showBarIcon) } }
-    @Published var barMetric: BarMetric { didSet { defaults.set(barMetric.rawValue, forKey: Key.barMetric) } }
+    /// 2 つ目と同じ指標を選んだら 2 つ目を外す。残すと「Second metric」のピッカーが選択なしになる。
+    @Published var barMetric: BarMetric {
+        didSet {
+            defaults.set(barMetric.rawValue, forKey: Key.barMetric)
+            if secondaryMetric == barMetric { secondaryMetric = nil }
+        }
+    }
+    @Published var secondaryMetric: BarMetric? { didSet { defaults.set(secondaryMetric?.rawValue, forKey: Key.secondaryMetric) } }
     @Published var percentBasis: PercentBasis { didSet { defaults.set(percentBasis.rawValue, forKey: Key.percentBasis) } }
     @Published var resetDisplay: ResetDisplay { didSet { defaults.set(resetDisplay.rawValue, forKey: Key.resetDisplay) } }
     @Published var showPercentSign: Bool { didSet { defaults.set(showPercentSign, forKey: Key.showPercentSign) } }
@@ -81,6 +89,7 @@ final class SettingsStore: ObservableObject {
         self.showBarText = defaults.object(forKey: Key.showBarText) as? Bool ?? d.showBarText
         self.showBarIcon = defaults.object(forKey: Key.showBarIcon) as? Bool ?? true
         self.barMetric = (defaults.string(forKey: Key.barMetric).flatMap(BarMetric.init(rawValue:))) ?? d.barMetric
+        self.secondaryMetric = defaults.string(forKey: Key.secondaryMetric).flatMap(BarMetric.init(rawValue:))
         self.percentBasis = (defaults.string(forKey: Key.percentBasis).flatMap(PercentBasis.init(rawValue:))) ?? d.percentBasis
         // 製品としての初期値（formatter のテストが固定している Core 中立の
         // DisplaySettings.default とは異なる）: 新規インストールではメトリックラベルを表示せず、
@@ -131,6 +140,7 @@ final class SettingsStore: ObservableObject {
         DisplaySettings(
             showBarText: showBarText,
             barMetric: barMetric,
+            secondaryMetric: secondaryMetric,
             percentBasis: percentBasis,
             resetDisplay: resetDisplay,
             showPercentSign: showPercentSign,

@@ -69,6 +69,19 @@ struct SettingsView: View {
                             Text(Self.label(for: metric)).tag(metric)
                         }
                     }
+                    Picker("Second metric", selection: $settings.secondaryMetric) {
+                        Text("None").tag(BarMetric?.none)
+                        ForEach(BarMetric.allCases.filter { $0 != settings.barMetric }, id: \.self) { metric in
+                            Text(Self.label(for: metric)).tag(BarMetric?.some(metric))
+                        }
+                    }
+                    .disabled(settings.effectiveAccountMode == .all)
+                    if settings.secondaryMetric != nil, settings.secondaryMetric != settings.barMetric,
+                       settings.effectiveAccountMode != .all {
+                        Text("Stacks both metrics on two lines, each with its label. Not used with All accounts.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Picker("Show", selection: $settings.percentBasis) {
                         Text("Remaining").tag(PercentBasis.remaining)
                         Text("Used").tag(PercentBasis.used)

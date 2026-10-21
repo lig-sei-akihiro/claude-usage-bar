@@ -28,6 +28,13 @@ public enum BarTitleFormatter {
             return BarTitle(text: "", severity: snapshot.sourceError == nil ? .stale : .error)
         }
 
+        let metricLines = metricLines(for: account, settings: settings, now: now)
+        if metricLines.count > 1 {
+            let worst = metricLines.map(\.severity).reduce(BarSeverity.normal, worseOf)
+            let text = settings.showBarText ? metricLines.map(\.text).joined(separator: "\n") : ""
+            return BarTitle(text: text, severity: worst)
+        }
+
         let window = pickWindow(for: account, metric: settings.barMetric)
         let sev = severity(account: account, window: window, settings: settings)
 
@@ -101,8 +108,10 @@ public enum BarTitleFormatter {
     /// この 1 つのウィンドウから決めることで、「赤いのにゲージが空」という食い違いが起きない。
     public static func iconWindow(for account: AccountUsage, settings: DisplaySettings) -> RateWindow? {
         var candidates = [account.session, account.weeklyAll].compactMap { $0 }
-        if let metric = pickWindow(for: account, metric: settings.barMetric), !candidates.contains(metric) {
-            candidates.append(metric)
+        for chosen in [settings.barMetric, settings.secondaryMetric].compactMap({ $0 }) {
+            if let metric = pickWindow(for: account, metric: chosen), !candidates.contains(metric) {
+                candidates.append(metric)
+            }
         }
         return candidates.max { a, b in
             let ra = rank(windowSeverity(a, warningAt: settings.warningThreshold, criticalAt: settings.criticalThreshold))
@@ -129,6 +138,30 @@ public enum BarTitleFormatter {
             .reduce(BarSeverity.normal, worseOf)
         let text = settings.showBarText ? lines.map(\.text).joined(separator: "\n") : ""
         return BarTitle(text: text, severity: worst)
+    }
+
+    /// 積み重ねて描く行。`.all` モードではアカウントごと、それ以外では `secondaryMetric` を
+    /// 指定したときの 1 アカウントの 2 ウィンドウ。積まない設定では空になる。
+    public static func stackedLines(from snapshot: UsageSnapshot, settings: DisplaySettings, now: Date = Date()) -> [StackedLine] {
+        if settings.accountMode == .all { return allLines(from: snapshot, settings: settings, now: now) }
+        guard let account = selectedAccount(from: snapshot, settings: settings) else { return [] }
+        let lines = metricLines(for: account, settings: settings, now: now)
+        return lines.count > 1 ? lines : []
+    }
+
+    /// 1 アカウントの `barMetric` と `secondaryMetric` の行。2 つの数字を区別できるよう、
+    /// 2 行のときは `showMetricLabel` に関わらず指標ラベルを付ける。
+    private static func metricLines(for account: AccountUsage, settings: DisplaySettings, now: Date) -> [StackedLine] {
+        guard let secondary = settings.secondaryMetric, secondary != settings.barMetric else { return [] }
+        return [settings.barMetric, secondary].map { metric in
+            var lineSettings = settings
+            lineSettings.barMetric = metric
+            lineSettings.showMetricLabel = true
+            let window = pickWindow(for: account, metric: metric)
+            var text = valueFragment(window: window, settings: lineSettings)
+            if let window { text += resetSuffix(window: window, settings: settings, now: now) }
+            return StackedLine(text: text, severity: severity(account: account, window: window, settings: settings))
+        }
     }
 
     /// `.all` モードで表示するアカウントごとの行。各行が **それ自身の** 深刻度を持つ
