@@ -13,6 +13,15 @@ struct PopoverView: View {
                 sourceBanner(sourceError)
             }
 
+            if let pool = model.snapshot.pool {
+                AccountCard(account: pool, settings: model.settings.displaySettings,
+                            subtitle: "\(model.snapshot.accounts.count) accounts, caps applied")
+                Text("Accounts")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+
             if model.snapshot.accounts.isEmpty {
                 if model.snapshot.sourceError == nil { emptyState }
             } else {
@@ -89,6 +98,8 @@ struct PopoverView: View {
 private struct AccountCard: View {
     let account: AccountUsage
     let settings: DisplaySettings
+    /// フォルダ名の代わりに出す副題。プール合算のカードが使う。
+    var subtitle: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -103,7 +114,11 @@ private struct AccountCard: View {
                         .font(.subheadline.bold())
                     // 匿名の "default" フォルダは隠し、実名のフォルダだけ表示する。
                     let named = account.folders.filter { $0 != "default" }
-                    if !named.isEmpty {
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if !named.isEmpty {
                         Text(named.joined(separator: ", "))
                             .font(.caption)
                             .foregroundStyle(.secondary)

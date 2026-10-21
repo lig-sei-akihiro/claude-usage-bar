@@ -6,7 +6,8 @@ import Foundation
 /// 契約:
 /// - `settings.showBarText` を尊重する（false でも呼び出し側はアイコン表示を望む場合がある）。
 /// - `accountMode`: `.active` → 最も制約の厳しいアカウント。`.pinned` → `pinnedEmail` に
-///   一致するアカウント（見つからなければ active にフォールバック）。`.all` → 1 行 1 アカウントの
+///   一致するアカウント（見つからなければ active にフォールバック）。`.pool` → プール合算
+///   （無ければ active にフォールバック）。`.all` → 1 行 1 アカウントの
 ///   複数行タイトル（制約の厳しい上位 2 件まで）で、各行にラベルを付ける。
 /// - `barMetric` がウィンドウを選ぶ（`.mostConstrained` はそのアカウントの active/最高使用率を使う）。
 /// - `percentBasis`: `.remaining` は `remainingPercent` を表示（既定）、`.used` は `usedPercent` を表示。
@@ -40,6 +41,7 @@ public enum BarTitleFormatter {
     /// `.active`/`.pinned` モードでバーが代表するアカウントを選ぶ。
     /// ユニットテスト用、およびポップオーバーのハイライトから再利用するために公開している。
     public static func selectedAccount(from snapshot: UsageSnapshot, settings: DisplaySettings) -> AccountUsage? {
+        if settings.accountMode == .pool, let pool = snapshot.pool { return pool }
         guard !snapshot.accounts.isEmpty else { return nil }
 
         // エラーになったアカウントは、ウィンドウをまだ保持していない限り使用率 0 として扱う。
@@ -54,7 +56,7 @@ public enum BarTitleFormatter {
                 return pinned
             }
             return active
-        case .active, .all:
+        case .active, .all, .pool:
             return active
         }
     }

@@ -115,11 +115,15 @@ final class SettingsStore: ObservableObject {
         criticalThreshold = DisplaySettings.default.criticalThreshold
     }
 
-    /// teamclaude のプールはローテーションするので `.active` に意味が薄い。永続値は書き換えず
-    /// 読み替えるだけにして、情報源を `.local` に戻したら元の選択に戻るようにする。
+    /// teamclaude のプールはローテーションするので `.active` に意味が薄く、プール合算に読み替える。
+    /// ローカルにはプールが無いので `.pool` は `.active` に読み替える。永続値は書き換えず、
+    /// 情報源を切り替えたら元の選択に戻るようにする。
     var effectiveAccountMode: AccountBarMode {
-        if usageSource == .teamclaude, accountMode == .active { return .all }
-        return accountMode
+        switch (usageSource, accountMode) {
+        case (.teamclaude, .active): return .pool
+        case (.local, .pool): return .active
+        default: return accountMode
+        }
     }
 
     /// formatter が使う Core の値型。

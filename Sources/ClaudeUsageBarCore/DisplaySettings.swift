@@ -41,6 +41,8 @@ public enum AccountBarMode: String, Sendable, CaseIterable, Codable {
     case pinned
     /// 全アカウントを " | " 区切りでコンパクトに表示する。
     case all
+    /// teamclaude のプール合算 (`UsageSnapshot.pool`) を表示する。合算が無ければ active と同じ。
+    case pool
 }
 
 /// バータイトルがパーセントの後ろに(あれば)どのリセット情報を付加するか。

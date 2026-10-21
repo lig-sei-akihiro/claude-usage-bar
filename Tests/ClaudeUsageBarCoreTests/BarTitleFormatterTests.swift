@@ -481,4 +481,22 @@ struct BarTitleFormatterTests {
         #expect(merged.generatedAt == Date(timeIntervalSince1970: 200))
         #expect(merged.sourceError == "teamclaude: 1 account unreadable")
     }
+
+    @Test func poolModeShowsThePoolAndFallsBackToActive() {
+        let accounts = [account("a@x", [win(.session, used: 80)]), account("b@x", [win(.session, used: 10)])]
+        let settings = DisplaySettings(showMetricLabel: false, accountMode: .pool)
+        var snap = snapshot(accounts)
+        #expect(BarTitleFormatter.make(from: snap, settings: settings).text == "80%")
+        snap.pool = AccountUsage(email: "Pool total", folders: [], windows: [win(.session, used: 45)])
+        #expect(BarTitleFormatter.make(from: snap, settings: settings).text == "45%")
+        #expect(BarTitleFormatter.icon(from: snap, settings: settings).fraction == 0.45)
+    }
+
+    @Test func aFailedRefreshKeepsThePreviousPool() {
+        let pool = AccountUsage(email: "Pool total", folders: [], windows: [win(.session, used: 45)])
+        let previous = UsageSnapshot(accounts: [account("a@x", [win(.session, used: 80)])],
+                                     generatedAt: Date(timeIntervalSince1970: 100), pool: pool)
+        let failed = UsageSnapshot(accounts: [], generatedAt: Date(timeIntervalSince1970: 200), sourceError: "down")
+        #expect(failed.retainingWindows(from: previous).pool == pool)
+    }
 }

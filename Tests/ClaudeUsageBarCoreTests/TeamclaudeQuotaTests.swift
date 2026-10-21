@@ -225,4 +225,29 @@ struct TeamclaudeQuotaTests {
             try map("not json")
         }
     }
+
+    @Test func poolIsReadFromThePoolKeyNotTheUncappedAggregate() throws {
+        #expect(try map(fixture).pool == nil)
+        let json = """
+        { "accounts": [],
+          "aggregate": { "weeklyShared": { "utilization": 0.70 } },
+          "pool": { "fiveHour": { "utilization": 0.04, "resetAt": 1788945600000, "knownAccounts": 4 },
+                    "weeklyShared": { "utilization": 0.7462, "resetAt": 1789200000000 },
+                    "weeklyFable": null } }
+        """
+        let pool = try #require(try map(json).pool)
+        #expect(pool.email == TeamclaudeQuotaClient.poolName)
+        #expect(pool.session?.usedPercent == 4)
+        #expect(abs((pool.weeklyAll?.usedPercent ?? 0) - 74.62) < 0.001)
+        #expect(pool.weeklyAll?.resetsAt == Date(timeIntervalSince1970: 1_789_200_000))
+        #expect(pool.weeklyFable == nil)
+    }
+
+    @Test func aMalformedPoolDoesNotHideTheAccounts() throws {
+        let result = try map("""
+        { "accounts": [ { "name": "a@example.com", "buckets": {} } ], "pool": "nope" }
+        """)
+        #expect(result.pool == nil)
+        #expect(result.accounts.count == 1)
+    }
 }

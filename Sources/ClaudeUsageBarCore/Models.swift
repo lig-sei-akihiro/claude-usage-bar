@@ -105,11 +105,15 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
     public var generatedAt: Date
     /// 情報源そのものに到達できない/読めない場合に非 nil。`AccountUsage.error` とは別の層。
     public var sourceError: String?
+    /// teamclaude のプール合算。各アカウントをキャップまでで数えた値で、CC の `/usage` と同じ式。
+    /// ローカル情報源と、`pool` を返さない teamclaude では nil。
+    public var pool: AccountUsage?
 
-    public init(accounts: [AccountUsage], generatedAt: Date, sourceError: String? = nil) {
+    public init(accounts: [AccountUsage], generatedAt: Date, sourceError: String? = nil, pool: AccountUsage? = nil) {
         self.accounts = accounts
         self.generatedAt = generatedAt
         self.sourceError = sourceError
+        self.pool = pool
     }
 
     public static let empty = UsageSnapshot(accounts: [], generatedAt: .distantPast)
@@ -122,7 +126,8 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
         if sourceError != nil, accounts.isEmpty, !previous.accounts.isEmpty {
             return UsageSnapshot(accounts: previous.accounts,
                                  generatedAt: previous.generatedAt,
-                                 sourceError: sourceError)
+                                 sourceError: sourceError,
+                                 pool: previous.pool)
         }
         let merged = accounts.map { acc -> AccountUsage in
             guard acc.hasError, acc.windows.isEmpty,
@@ -133,7 +138,7 @@ public struct UsageSnapshot: Sendable, Equatable, Codable {
                 email: acc.email, folders: acc.folders, windows: prev.windows,
                 error: nil, fetchedAt: prev.fetchedAt)
         }
-        return UsageSnapshot(accounts: merged, generatedAt: generatedAt, sourceError: sourceError)
+        return UsageSnapshot(accounts: merged, generatedAt: generatedAt, sourceError: sourceError, pool: pool)
     }
 }
 

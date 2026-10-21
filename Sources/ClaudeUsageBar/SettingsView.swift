@@ -105,12 +105,14 @@ struct SettingsView: View {
                 Picker("Account", selection: accountModeSelection) {
                     if settings.usageSource == .local {
                         Text("Active (most constrained)").tag(AccountBarMode.active)
+                    } else {
+                        Text("Pool total").tag(AccountBarMode.pool)
                     }
                     Text("Pinned account").tag(AccountBarMode.pinned)
                     Text("All accounts").tag(AccountBarMode.all)
                 }
-                if settings.usageSource == .teamclaude {
-                    Text("The pool rotates accounts, so a single most-constrained account is not shown. All accounts is used instead.")
+                if settings.effectiveAccountMode == .pool {
+                    Text("The whole pool as one figure, each account counted up to its cap. Matches /usage in Claude Code. Needs the teamclaude pool patch; without it the most constrained account is shown.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
