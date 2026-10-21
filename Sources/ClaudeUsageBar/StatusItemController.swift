@@ -14,6 +14,7 @@ final class StatusItemController {
     private var settingsWindow: NSWindow?
     private var refreshTimer: Timer?
     private var settingsCancellable: AnyCancellable?
+    private var appearanceObservation: NSKeyValueObservation?
     private var isRefreshing = false
     private var pendingRefresh = false
     private var currentSource: UsageSourceKind
@@ -37,6 +38,11 @@ final class StatusItemController {
             button.target = self
             button.action = #selector(handleClick(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            // 色は描画時の外観で焼き込むので、外観が変われば描き直す。起動直後のボタンは
+            // メニューバーの外観が決まる前の VibrantLight を返し、次の更新まで明るい色のまま残る。
+            appearanceObservation = button.observe(\.effectiveAppearance) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.updateBar() }
+            }
         }
 
         model.refreshAction = { [weak self] in self?.refresh() }
