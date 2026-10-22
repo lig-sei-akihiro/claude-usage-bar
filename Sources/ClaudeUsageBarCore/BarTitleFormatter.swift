@@ -219,7 +219,7 @@ public enum BarTitleFormatter {
             let cd = DateFormatting.countdownString(to: window.resetsAt, now: now)
             return cd.isEmpty ? "" : " · \(cd)"
         case .time:
-            let t = DateFormatting.jstResetShortTime(window.resetsAt)
+            let t = DateFormatting.jstResetShortTime(window.resetsAt, now: now)
             return t.isEmpty ? "" : " · \(t)"
         }
     }

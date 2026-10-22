@@ -14,12 +14,13 @@ public enum DateFormatting {
         return String(format: "%d/%d %02d:%02d", c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0)
     }
 
-    /// JST の "HH:mm" のみ(日付なし) — メニューバー向けのコンパクトなリセット時刻。
-    public static func jstResetShortTime(_ date: Date?) -> String {
+    /// JST の "HH:mm" — メニューバー向けのコンパクトなリセット時刻。`now` と JST で別の日なら "M/d HH:mm"。
+    public static func jstResetShortTime(_ date: Date?, now: Date = Date()) -> String {
         guard let date else { return "" }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 9 * 3600)!
         let rounded = date.addingTimeInterval(30)
+        if !cal.isDate(rounded, inSameDayAs: now) { return jstResetString(date) }
         let c = cal.dateComponents([.hour, .minute], from: rounded)
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }

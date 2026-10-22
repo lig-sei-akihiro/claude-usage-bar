@@ -260,8 +260,19 @@ struct BarTitleFormatterTests {
         let resets = Date(timeIntervalSince1970: 1_000_000)
         let out = BarTitleFormatter.make(
             from: snapshot([account("a@x", [win(.session, used: 40, resets: resets)])]),
-            settings: DisplaySettings(percentBasis: .used, resetDisplay: .time))
+            settings: DisplaySettings(percentBasis: .used, resetDisplay: .time),
+            now: resets.addingTimeInterval(-3600))
         #expect(out.text == "5h 40% · 22:47")
+    }
+
+    @Test func resetTimeSuffixOnAnotherDayCarriesTheDate() {
+        // JST 1/12 22:47 のリセットを 2 日前の JST 1/10 22:47 から見る。
+        let resets = Date(timeIntervalSince1970: 1_000_000)
+        let out = BarTitleFormatter.make(
+            from: snapshot([account("a@x", [win(.weeklyAll, used: 40, resets: resets)])]),
+            settings: DisplaySettings(barMetric: .weeklyAll, percentBasis: .used, resetDisplay: .time),
+            now: resets.addingTimeInterval(-2 * 86400))
+        #expect(out.text == "W 40% · 1/12 22:47")
     }
 
     // MARK: - showBarText == false のとき
