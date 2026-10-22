@@ -185,11 +185,21 @@ public struct BarIcon: Sendable, Equatable {
 /// `.all` モードで積み重ねて表示するタイトルの 1 行。行ごとに深刻度を持たせ、メニューバー上で
 /// アカウント行を個別に色付けできるようにする。
 public struct StackedLine: Sendable, Equatable {
-    public var text: String
+    public var label: String
+    public var value: String
+    public var reset: String
     public var severity: BarSeverity
 
-    public init(text: String, severity: BarSeverity) {
-        self.text = text
+    public init(label: String, value: String, reset: String = "", severity: BarSeverity) {
+        self.label = label
+        self.value = value
+        self.reset = reset
         self.severity = severity
+    }
+
+    public var text: String {
+        var s = label.isEmpty ? value : label + " " + value
+        if !reset.isEmpty { s += " · " + reset }
+        return s
     }
 }

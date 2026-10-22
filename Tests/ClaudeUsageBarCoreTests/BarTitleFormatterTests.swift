@@ -521,6 +521,19 @@ struct BarTitleFormatterTests {
         #expect(lines.map(\.severity) == [.normal, .critical])
     }
 
+    @Test func stackedLinesCarryLabelValueAndResetAsColumns() {
+        let resets = Date(timeIntervalSince1970: 1_000_000)
+        let acc = account("a@x", [win(.session, used: 9, resets: resets),
+                                  win(.weeklyAll, used: 99, resets: resets.addingTimeInterval(2 * 86400))])
+        let settings = DisplaySettings(secondaryMetric: .weeklyAll, resetDisplay: .time)
+        let lines = BarTitleFormatter.stackedLines(from: snapshot([acc]), settings: settings,
+                                                   now: resets.addingTimeInterval(-3600))
+        #expect(lines.map(\.label) == ["5h", "W"])
+        #expect(lines.map(\.value) == ["9%", "99%"])
+        #expect(lines.map(\.reset) == ["22:47", "1/14 22:47"])
+        #expect(lines[0].text == "5h 9% · 22:47")
+    }
+
     @Test func secondaryMetricIsIgnoredWhenSameAsPrimaryOrInAllMode() {
         let acc = account("a@x", [win(.session, used: 5), win(.weeklyAll, used: 60)])
         let same = DisplaySettings(secondaryMetric: .session, showMetricLabel: false)
