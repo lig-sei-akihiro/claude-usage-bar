@@ -283,27 +283,40 @@ final class StatusItemController {
     }
 
     /// 任意の先頭グリフと積み重ねた複数行を、メニューバーの高さに合わせた画像に、縦方向は中央
-    /// 揃えで描画する。各行のパーセンテージはそれぞれの severity 色を保つ。レイアウトは 1 回の
-    /// 複数行描画なので、行間が安定する。
+    /// 揃えで描画する。ラベル・パーセンテージ・リセットをそれぞれ列として右揃えにし、行をまたいで
+    /// 桁と % の位置を揃える。パーセンテージだけがその行の severity 色をとる。
     private static func stackedTitleImage(lines: [StackedLine],
                                           leadingGlyph: NSImage? = nil,
                                           appearance: NSAppearance? = nil) -> NSImage {
+        let lineHeight: CGFloat = 10.5
         let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .right
         paragraph.lineSpacing = 0
-        paragraph.maximumLineHeight = 10.5
-        paragraph.minimumLineHeight = 10.5
+        paragraph.maximumLineHeight = lineHeight
+        paragraph.minimumLineHeight = lineHeight
         let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
-        let attr = NSMutableAttributedString()
-        for (i, line) in lines.enumerated() {
-            if i > 0 { attr.append(NSAttributedString(string: "\n")) }
-            attr.append(barLine(line.text, severity: line.severity, font: font, paragraph: paragraph, appearance: appearance))
+        let baseColor = NSColor.labelColor.resolved(for: appearance)
+        func cell(_ text: String, color: NSColor) -> NSAttributedString {
+            NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: color, .paragraphStyle: paragraph])
         }
-        let textSize = attr.size()
+        let rows = lines.map { line in
+            [cell(line.label, color: baseColor),
+             cell(line.value, color: SeverityColor.ns(line.severity).resolved(for: appearance)),
+             cell(line.reset, color: baseColor)]
+        }
+        let columnWidths = (0..<3).map { col in rows.map { ceil($0[col].size().width) }.max() ?? 0 }
+        let space = ceil(cell(" ", color: baseColor).size().width)
+        let gaps: [CGFloat] = [0, columnWidths[0] > 0 ? space : 0, columnWidths[2] > 0 ? space * 2 : 0]
+        var columnRights: [CGFloat] = []
+        var x: CGFloat = 0
+        for col in 0..<3 {
+            x += gaps[col] + columnWidths[col]
+            columnRights.append(x)
+        }
+        let textW = x
+        let textH = lineHeight * CGFloat(rows.count)
         let height = NSStatusBar.system.thickness
         let glyphW = leadingGlyph?.size.width ?? 0
         let gap: CGFloat = leadingGlyph == nil ? 0 : 4
-        let textW = ceil(textSize.width)
         let width = max(1, glyphW + gap + textW + 2)
         let image = NSImage(size: NSSize(width: width, height: height))
         image.lockFocus()
@@ -313,8 +326,14 @@ final class StatusItemController {
         }
         // 1pt 下にずらす。各行のボックスは下端に空のディセンダ領域を抱えているため、幾何学的な
         // 中央に置くとグリフの塊がやや上に見える。目視で確認済み。
-        let y = ((height - textSize.height) / 2).rounded() - 1
-        attr.draw(in: NSRect(x: glyphW + gap, y: y, width: textW, height: ceil(textSize.height)))
+        let top = ((height - textH) / 2).rounded() - 1 + textH
+        for (i, row) in rows.enumerated() {
+            let y = top - lineHeight * CGFloat(i + 1)
+            for (col, text) in row.enumerated() where text.length > 0 {
+                let w = ceil(text.size().width)
+                text.draw(in: NSRect(x: glyphW + gap + columnRights[col] - w, y: y, width: w, height: lineHeight))
+            }
+        }
         image.unlockFocus()
         image.isTemplate = false
         return image

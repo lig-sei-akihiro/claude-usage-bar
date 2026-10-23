@@ -158,9 +158,11 @@ public enum BarTitleFormatter {
             lineSettings.barMetric = metric
             lineSettings.showMetricLabel = true
             let window = pickWindow(for: account, metric: metric)
-            var text = valueFragment(window: window, settings: lineSettings)
-            if let window { text += resetSuffix(window: window, settings: settings, now: now) }
-            return StackedLine(text: text, severity: severity(account: account, window: window, settings: settings))
+            return StackedLine(
+                label: metric.shortLabel,
+                value: numberFragment(window: window, settings: lineSettings),
+                reset: window.map { resetText(window: $0, settings: settings, now: now) } ?? "",
+                severity: severity(account: account, window: window, settings: settings))
         }
     }
 
@@ -173,11 +175,14 @@ public enum BarTitleFormatter {
             .prefix(2)
             .map { account in
                 let window = pickWindow(for: account, metric: settings.barMetric)
-                let label = accountLabel(account)
-                var text = label.isEmpty ? "" : label + " "
-                text += valueFragment(window: window, settings: settings)
-                if let window { text += resetSuffix(window: window, settings: settings, now: now) }
-                return StackedLine(text: text, severity: severity(account: account, window: window, settings: settings))
+                let label = [accountLabel(account), settings.showMetricLabel ? settings.barMetric.shortLabel : ""]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+                return StackedLine(
+                    label: label,
+                    value: numberFragment(window: window, settings: settings),
+                    reset: window.map { resetText(window: $0, settings: settings, now: now) } ?? "",
+                    severity: severity(account: account, window: window, settings: settings))
             }
     }
 
@@ -198,8 +203,12 @@ public enum BarTitleFormatter {
 
     /// 指標値の断片（ラベル + 数値 + % 記号）。カウントダウンの接尾辞は含まない。
     private static func valueFragment(window: RateWindow?, settings: DisplaySettings) -> String {
+        let number = numberFragment(window: window, settings: settings)
+        return settings.showMetricLabel ? settings.barMetric.shortLabel + " " + number : number
+    }
+
+    private static func numberFragment(window: RateWindow?, settings: DisplaySettings) -> String {
         var s = ""
-        if settings.showMetricLabel { s += settings.barMetric.shortLabel + " " }
         if let window {
             let value = settings.percentBasis == .remaining ? window.remainingPercent : window.usedPercent
             s += String(Int(value.rounded()))
@@ -212,15 +221,18 @@ public enum BarTitleFormatter {
 
     /// `settings.resetDisplay` に従って断片に追記するリセット情報。
     private static func resetSuffix(window: RateWindow, settings: DisplaySettings, now: Date) -> String {
+        let t = resetText(window: window, settings: settings, now: now)
+        return t.isEmpty ? "" : " · \(t)"
+    }
+
+    private static func resetText(window: RateWindow, settings: DisplaySettings, now: Date) -> String {
         switch settings.resetDisplay {
         case .none:
             return ""
         case .countdown:
-            let cd = DateFormatting.countdownString(to: window.resetsAt, now: now)
-            return cd.isEmpty ? "" : " · \(cd)"
+            return DateFormatting.countdownString(to: window.resetsAt, now: now)
         case .time:
-            let t = DateFormatting.jstResetShortTime(window.resetsAt, now: now)
-            return t.isEmpty ? "" : " · \(t)"
+            return DateFormatting.jstResetShortTime(window.resetsAt, now: now)
         }
     }
 
